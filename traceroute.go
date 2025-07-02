@@ -5,7 +5,6 @@ package traceroute
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net"
 	"syscall"
 	"time"
@@ -39,19 +38,18 @@ func socketAddr() (addr [4]byte, err error) {
 }
 
 // Given a host name convert it to a 4 byte IP address.
-func destAddr(dest string) (destAddr net.IP, err error) {
+func destAddr(dest string) (net.IP, error) {
 	addrs, err := net.LookupHost(dest)
 	if err != nil {
-		return
+		return nil, err
 	}
 	addr := addrs[0]
 
 	ipAddr, err := net.ResolveIPAddr("ip", addr)
 	if err != nil {
-		return
+		return nil, err
 	}
-	copy(destAddr[:], ipAddr.IP.To4())
-	return
+	return ipAddr.IP.To4(), nil
 }
 
 // TracrouteOptions type
@@ -141,7 +139,7 @@ type TracerouteHop struct {
 }
 
 func (hop *TracerouteHop) AddressString() string {
-	return fmt.Sprintf("%v.%v.%v.%v", hop.Address[0], hop.Address[1], hop.Address[2], hop.Address[3])
+	return hop.Address.String()
 }
 
 func (hop *TracerouteHop) HostOrAddressString() string {
@@ -186,42 +184,40 @@ func Traceroute(dest string, options *TracerouteOptions, c ...chan TracerouteHop
 		return
 	}
 
-	timeoutMs := (int64)(options.TimeoutMs())
-	tv := syscall.NsecToTimeval(1000 * 1000 * timeoutMs)
+	// Set up the socket to send packets out.
+	sendSocket, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
+	if err != nil {
+		return result, err
+	}
+	defer syscall.Close(sendSocket)
+	// Set up the socket to receive inbound packets
+	recvSocket, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
+	if err != nil {
+		return result, err
+	}
+	defer syscall.Close(recvSocket)
+
+	// This sets the timeout to wait for a response from the remote host
+	tv := syscall.NsecToTimeval(int64(options.TimeoutMs()) * int64(time.Millisecond))
+	syscall.SetsockoptTimeval(recvSocket, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv)
+
+	// Bind to the local socket to listen for ICMP packets
+	syscall.Bind(recvSocket, &syscall.SockaddrInet4{Port: options.Port(), Addr: socketAddr})
 
 	ttl := options.FirstHop()
 	retry := 0
 	for {
-		//log.Println("TTL: ", ttl)
+		// log.Println("TTL: ", ttl)
 		start := time.Now()
 
-		// Set up the socket to receive inbound packets
-		recvSocket, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
-		if err != nil {
-			return result, err
-		}
-
-		// Set up the socket to send packets out.
-		sendSocket, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
-		if err != nil {
-			return result, err
-		}
 		// This sets the current hop TTL
-		syscall.SetsockoptInt(sendSocket, 0x0, syscall.IP_TTL, ttl)
-		// This sets the timeout to wait for a response from the remote host
-		syscall.SetsockoptTimeval(recvSocket, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv)
+		syscall.SetsockoptInt(sendSocket, syscall.IPPROTO_IP, syscall.IP_TTL, ttl)
 
-		defer syscall.Close(recvSocket)
-		defer syscall.Close(sendSocket)
-
-		// Bind to the local socket to listen for ICMP packets
-		syscall.Bind(recvSocket, &syscall.SockaddrInet4{Port: options.Port(), Addr: socketAddr})
-
-		// Send a single null byte UDP packet
 		destIPBytes, err := NetIPToFourByte(destAddr)
 		if err != nil {
-			// TODO
+			return result, err
 		}
+		// Send a single null byte UDP packet
 		syscall.Sendto(sendSocket, []byte{0x0}, 0, &syscall.SockaddrInet4{Port: options.Port(), Addr: destIPBytes})
 
 		var p = make([]byte, options.PacketSize())
@@ -230,7 +226,7 @@ func Traceroute(dest string, options *TracerouteOptions, c ...chan TracerouteHop
 		if err == nil {
 			currentNetIP, err := FourByteToNetIP(from.(*syscall.SockaddrInet4).Addr)
 			if err != nil {
-				// TODO
+				return result, err
 			}
 			hop := TracerouteHop{Success: true, Address: currentNetIP, N: n, ElapsedTime: elapsed, TTL: ttl}
 
