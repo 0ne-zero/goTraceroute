@@ -228,14 +228,8 @@ func Traceroute(dest string, options *TracerouteOptions, c ...chan TracerouteHop
 
 			hop := TracerouteHop{Success: true, Address: currAddr, N: n, ElapsedTime: elapsed, TTL: ttl}
 
-			// Use context with timeout for the reverse lookup
-			ctx, cancel := context.WithTimeout(context.Background(), DEFAULT_TIMEOUT_MS)
-			defer cancel()
 			// Do reverse lookup
-			currHost, err := net.DefaultResolver.LookupAddr(ctx, hop.AddressString())
-			if err == nil && len(currHost) > 0 {
-				hop.Host = currHost[0]
-			}
+			hop.Host = reverseLookup(hop.AddressString(), time.Duration(DEFAULT_TIMEOUT_MS))
 
 			notify(hop, c)
 
@@ -263,4 +257,14 @@ func Traceroute(dest string, options *TracerouteOptions, c ...chan TracerouteHop
 		}
 
 	}
+}
+
+func reverseLookup(addr string, timeout time.Duration) string {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	names, err := net.DefaultResolver.LookupAddr(ctx, addr)
+	if err == nil && len(names) > 0 {
+		return names[0]
+	}
+	return ""
 }
