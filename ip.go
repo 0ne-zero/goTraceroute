@@ -7,11 +7,12 @@ import (
 
 // Converts a net.IP (IPv4) to [4]byte
 func NetIPToFourByte(ip net.IP) ([4]byte, error) {
-	res := [4]byte{}
+	var res [4]byte
 	ip = ip.To4()
 	if ip == nil {
 		return res, errors.New("invalid IPv4 address")
 	}
+	copy(res[:], ip)
 	return res, nil
 }
 
