@@ -3,6 +3,7 @@
 package traceroute
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -227,10 +228,12 @@ func Traceroute(dest string, options *TracerouteOptions, c ...chan TracerouteHop
 
 			hop := TracerouteHop{Success: true, Address: currAddr, N: n, ElapsedTime: elapsed, TTL: ttl}
 
-			// TODO: this reverse lookup appears to have some standard timeout that is relatively
-			// high. Consider switching to something where there is greater control.
-			currHost, err := net.LookupAddr(hop.AddressString())
-			if err == nil {
+			// Use context with timeout for the reverse lookup
+			ctx, cancel := context.WithTimeout(context.Background(), DEFAULT_TIMEOUT_MS)
+			defer cancel()
+			// Do reverse lookup
+			currHost, err := net.DefaultResolver.LookupAddr(ctx, hop.AddressString())
+			if err == nil && len(currHost) > 0 {
 				hop.Host = currHost[0]
 			}
 
