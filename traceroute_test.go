@@ -10,7 +10,7 @@ func printHop(hop TracerouteHop) {
 }
 
 func TestTraceroute(t *testing.T) {
-	fmt.Println("Testing synchronous traceroute\n")
+	fmt.Println("Testing synchronous traceroute:")
 	out, err := Traceroute("google.com", new(TracerouteOptions))
 	if err == nil {
 		if len(out.Hops) == 0 {
@@ -27,8 +27,8 @@ func TestTraceroute(t *testing.T) {
 }
 
 func TestTraceouteChannel(t *testing.T) {
-	fmt.Println("Testing asynchronous traceroute\n")
-	c := make(chan TracerouteHop, 0)
+	fmt.Println("\nTesting asynchronous traceroute:")
+	c := make(chan TracerouteHop)
 	go func() {
 		for {
 			hop, ok := <-c
