@@ -39,7 +39,7 @@ func socketAddr() (addr [4]byte, err error) {
 }
 
 // Given a host name convert it to a 4 byte IP address.
-func destAddr(dest string) (destAddr [4]byte, err error) {
+func destAddr(dest string) (destAddr net.IP, err error) {
 	addrs, err := net.LookupHost(dest)
 	if err != nil {
 		return
@@ -133,7 +133,7 @@ func (options *TracerouteOptions) SetPacketSize(packetSize int) {
 // TracerouteHop type
 type TracerouteHop struct {
 	Success     bool
-	Address     [4]byte
+	Address     net.IP
 	Host        string
 	N           int
 	ElapsedTime time.Duration
@@ -154,7 +154,7 @@ func (hop *TracerouteHop) HostOrAddressString() string {
 
 // TracerouteResult type
 type TracerouteResult struct {
-	DestinationAddress [4]byte
+	DestinationAddress net.IP
 	Hops               []TracerouteHop
 }
 
@@ -218,15 +218,21 @@ func Traceroute(dest string, options *TracerouteOptions, c ...chan TracerouteHop
 		syscall.Bind(recvSocket, &syscall.SockaddrInet4{Port: options.Port(), Addr: socketAddr})
 
 		// Send a single null byte UDP packet
-		syscall.Sendto(sendSocket, []byte{0x0}, 0, &syscall.SockaddrInet4{Port: options.Port(), Addr: destAddr})
+		destIPBytes, err := NetIPToFourByte(destAddr)
+		if err != nil {
+			// TODO
+		}
+		syscall.Sendto(sendSocket, []byte{0x0}, 0, &syscall.SockaddrInet4{Port: options.Port(), Addr: destIPBytes})
 
 		var p = make([]byte, options.PacketSize())
 		n, from, err := syscall.Recvfrom(recvSocket, p, 0)
 		elapsed := time.Since(start)
 		if err == nil {
-			currAddr := from.(*syscall.SockaddrInet4).Addr
-
-			hop := TracerouteHop{Success: true, Address: currAddr, N: n, ElapsedTime: elapsed, TTL: ttl}
+			currentNetIP, err := FourByteToNetIP(from.(*syscall.SockaddrInet4).Addr)
+			if err != nil {
+				// TODO
+			}
+			hop := TracerouteHop{Success: true, Address: currentNetIP, N: n, ElapsedTime: elapsed, TTL: ttl}
 
 			// Do reverse lookup
 			hop.Host = reverseLookup(hop.AddressString(), time.Duration(DEFAULT_TIMEOUT_MS))
@@ -238,7 +244,7 @@ func Traceroute(dest string, options *TracerouteOptions, c ...chan TracerouteHop
 			ttl += 1
 			retry = 0
 
-			if ttl > options.MaxHops() || currAddr == destAddr {
+			if ttl > options.MaxHops() || currentNetIP.Equal(destAddr) {
 				closeNotify(c)
 				return result, nil
 			}
