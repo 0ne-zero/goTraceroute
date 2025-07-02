@@ -139,15 +139,18 @@ type TracerouteHop struct {
 }
 
 func (hop *TracerouteHop) AddressString() string {
+	if hop.Address == nil {
+		return ""
+	}
 	return hop.Address.String()
 }
 
 func (hop *TracerouteHop) HostOrAddressString() string {
-	hostOrAddr := hop.AddressString()
 	if hop.Host != "" {
-		hostOrAddr = hop.Host
+		return hop.Host
+	} else {
+		return hop.AddressString()
 	}
-	return hostOrAddr
 }
 
 // TracerouteResult type
@@ -224,10 +227,7 @@ func Traceroute(dest string, options *TracerouteOptions, c ...chan TracerouteHop
 		n, from, err := syscall.Recvfrom(recvSocket, p, 0)
 		elapsed := time.Since(start)
 		if err == nil {
-			currentNetIP, err := FourByteToNetIP(from.(*syscall.SockaddrInet4).Addr)
-			if err != nil {
-				return result, err
-			}
+			currentNetIP, _ := FourByteToNetIP(from.(*syscall.SockaddrInet4).Addr)
 			hop := TracerouteHop{Success: true, Address: currentNetIP, N: n, ElapsedTime: elapsed, TTL: ttl}
 
 			// Do reverse lookup
