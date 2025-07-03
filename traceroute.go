@@ -57,43 +57,58 @@ func Traceroute(dest string, options *tracerouteOptions, chans ...chan Tracerout
 	}
 
 	ttl := options.FirstHop()
-	retry := 0
+	retryCounter := 0
 
 	for {
-		start := time.Now()
+		// Stop traceroute and return the result if ttl exceeded maximum allowed hops
+		if ttl > options.MaxHops() {
+			closeNotify(chans)
+			return result, nil
+		}
 
+		// Send UDP packet with specified Time-To-Live to probe
+		start := time.Now()
 		if err := sendProbe(sendSocket, ttl, options.Port(), destAddr); err != nil {
 			return result, err
 		}
 
+		// Receive ICMP response
 		n, from, err := receiveProbe(recvSocket, options.PacketSize())
 		elapsed := time.Since(start)
 
-		if err == nil {
+		if err != nil {
+			// Continue to the next ttl if the maximum retry has been done
+			if retryCounter == options.MaxRetries() {
+				hop := createHop(false, from, n, elapsed, ttl)
+				notify(hop, chans)
+				result.Hops = append(result.Hops, hop)
+
+				// Reset retry counter
+				retryCounter = 0
+				// Increase ttl
+				ttl += 1
+
+				// Continue the traceroute
+			}
+			// Retry the traceroute with the same TTL
+			retryCounter += 1
+		} else {
 			hop := createHop(true, from, n, elapsed, ttl)
 			notify(hop, chans)
 			result.Hops = append(result.Hops, hop)
 
-			ttl++
-			retry = 0
+			// Stop traceroute and return the result if the response was from the destination itself (we reached the end)
+			if from.Equal(destAddr) {
+				closeNotify(chans)
+				return result, nil
+			}
 
-			if ttl > options.MaxHops() || from.Equal(destAddr) {
-				closeNotify(chans)
-				return result, nil
-			}
-		} else {
-			retry++
-			if retry > options.Retries() {
-				hop := createHop(false, from, n, elapsed, ttl)
-				notify(hop, chans)
-				result.Hops = append(result.Hops, hop)
-				ttl++
-				retry = 0
-			}
-			if ttl > options.MaxHops() {
-				closeNotify(chans)
-				return result, nil
-			}
+			// Reset retry counter
+			retryCounter = 0
+			// Increase ttl
+			ttl += 1
+
+			// Continue the traceroute
 		}
 	}
 }
