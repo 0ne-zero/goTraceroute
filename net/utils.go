@@ -9,7 +9,7 @@ import (
 	"github.com/aeden/traceroute/net/socket"
 )
 
-// Return the first non-loopback IP address (IPv4 or IPv6).
+// Returns the first non-loopback IP address (IPv4 or IPv6).
 func LocalNonLoopbackIP(family int) (net.IP, error) {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
@@ -18,7 +18,10 @@ func LocalNonLoopbackIP(family int) (net.IP, error) {
 
 	for _, a := range addrs {
 		ipnet, ok := a.(*net.IPNet)
-		if !ok || ipnet.IP.IsLoopback() {
+		if !ok {
+			continue
+		}
+		if ipnet.IP.IsLoopback() || (ipnet.IP.To16() != nil && ipnet.IP.IsLinkLocalUnicast()) {
 			continue
 		}
 
