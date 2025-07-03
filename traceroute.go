@@ -84,7 +84,9 @@ func Traceroute(dest string, options *tracerouteOptions, chans ...chan Tracerout
 		} else {
 			retry++
 			if retry > options.Retries() {
-				notify(TracerouteHop{Success: false, TTL: ttl}, chans)
+				hop := createHop(false, from, n, elapsed, ttl)
+				notify(hop, chans)
+				result.Hops = append(result.Hops, hop)
 				ttl++
 				retry = 0
 			}
