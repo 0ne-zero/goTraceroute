@@ -38,7 +38,7 @@ func Traceroute(dest string, options *tracerouteOptions, chans ...chan Tracerout
 	defer sendSocket.Close()
 
 	// Create inbound socket
-	recvSocket, err := trace_socket.NewSocket(trace_socket.AF_INET, trace_socket.SOCK_RAW, icmpProto)
+	recvSocket, err := trace_socket.NewSocket(addressFamily, trace_socket.SOCK_RAW, icmpProto)
 	if err != nil {
 		return result, err
 	}
