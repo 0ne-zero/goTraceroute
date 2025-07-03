@@ -3,8 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/aeden/traceroute"
 	"net"
+
+	"github.com/aeden/traceroute"
 )
 
 func printHop(hop traceroute.TracerouteHop) {
@@ -20,18 +21,14 @@ func printHop(hop traceroute.TracerouteHop) {
 	}
 }
 
-func address(address [4]byte) string {
-	return fmt.Sprintf("%v.%v.%v.%v", address[0], address[1], address[2], address[3])
-}
-
 func main() {
-	var m = flag.Int("m", traceroute.DEFAULT_MAX_HOPS, `Set the max time-to-live (max number of hops) used in outgoing probe packets (default is 64)`)
-	var f = flag.Int("f", traceroute.DEFAULT_FIRST_HOP, `Set the first used time-to-live, e.g. the first hop (default is 1)`)
-	var q = flag.Int("q", 1, `Set the number of probes per "ttl" to nqueries (default is one probe).`)
+	var m = flag.Int("m", traceroute.DefaultMaxHops, `Set the max time-to-live (max number of hops) used in outgoing probe packets (default is 64)`)
+	var f = flag.Int("f", traceroute.DefaultFirstHop, `Set the first used time-to-live, e.g. the first hop (default is 1)`)
+	var q = flag.Int("q", 1, `Set the number of probes per "ttl" (default is one probe).`)
 
 	flag.Parse()
 	host := flag.Arg(0)
-	options := traceroute.TracerouteOptions{}
+	options := traceroute.NewTracerouteOptions()
 	options.SetRetries(*q - 1)
 	options.SetMaxHops(*m + 1)
 	options.SetFirstHop(*f)
@@ -43,7 +40,7 @@ func main() {
 
 	fmt.Printf("traceroute to %v (%v), %v hops max, %v byte packets\n", host, ipAddr, options.MaxHops(), options.PacketSize())
 
-	c := make(chan traceroute.TracerouteHop, 0)
+	c := make(chan traceroute.TracerouteHop)
 	go func() {
 		for {
 			hop, ok := <-c
@@ -55,8 +52,8 @@ func main() {
 		}
 	}()
 
-	_, err = traceroute.Traceroute(host, &options, c)
+	_, err = traceroute.Traceroute(host, options, c)
 	if err != nil {
-		fmt.Printf("Error: ", err)
+		fmt.Printf("Error: %v ", err)
 	}
 }
