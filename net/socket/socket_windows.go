@@ -64,23 +64,17 @@ func (s *windowsSocket) SetSockOptInt(level, opt, value int) error {
 }
 
 func toSockaddrInet4(ip net.IP, port int) (*windows.SockaddrInet4, error) {
-	ip4 := ip.To4()
-	if ip4 == nil {
+	if ip = ip.To4(); ip == nil {
 		return nil, errors.New("IP is not valid IPv4")
 	}
-	var addr [4]byte
-	copy(addr[:], ip4)
-	return &windows.SockaddrInet4{Port: port, Addr: addr}, nil
+	return &windows.SockaddrInet4{Port: port, Addr: [4]byte(ip)}, nil
 }
 
 func toSockaddrInet6(ip net.IP, port int) (*windows.SockaddrInet6, error) {
-	ip16 := ip.To16()
-	if ip16 == nil {
+	if ip = ip.To16(); ip == nil {
 		return nil, errors.New("IP is not valid IPv6")
 	}
-	var addr [16]byte
-	copy(addr[:], ip16)
-	return &windows.SockaddrInet6{Port: port, Addr: addr}, nil
+	return &windows.SockaddrInet6{Port: port, Addr: [16]byte(ip)}, nil
 }
 
 func (s *windowsSocket) Bind(port int, ip net.IP) error {
