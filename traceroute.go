@@ -20,26 +20,38 @@ func Traceroute(dest string, options *tracerouteOptions, chans ...chan Tracerout
 	}
 	result.DestinationAddress = destAddr
 
-	localAddr, err := trace_net.LocalNonLoopbackIP()
-	if err != nil {
-		return result, err
+	// Setup sockets configs based on destination IP version
+	addressFamily := trace_socket.AF_INET
+	icmpProto := trace_socket.IPPROTO_ICMP
+	// Get destination IP family (e.g. IPv4/IPv6)
+	destIPFamily := trace_net.GetIPFamily(destAddr)
+	if destIPFamily == trace_socket.AF_INET6 {
+		addressFamily = trace_socket.AF_INET6
+		icmpProto = trace_socket.IPPROTO_ICMPV6
 	}
 
-	sendSocket, err := trace_socket.NewSocket(trace_socket.AF_INET, trace_socket.SOCK_DGRAM, trace_socket.IPPROTO_UDP)
+	// Create outbound socket
+	sendSocket, err := trace_socket.NewSocket(addressFamily, trace_socket.SOCK_DGRAM, trace_socket.IPPROTO_UDP)
 	if err != nil {
 		return result, err
 	}
 	defer sendSocket.Close()
 
-	recvSocket, err := trace_socket.NewSocket(trace_socket.AF_INET, trace_socket.SOCK_RAW, trace_socket.IPPROTO_ICMP)
+	// Create inbound socket
+	recvSocket, err := trace_socket.NewSocket(trace_socket.AF_INET, trace_socket.SOCK_RAW, icmpProto)
 	if err != nil {
 		return result, err
 	}
 	defer recvSocket.Close()
-
+	// Set timeout for inbound socket
 	timeout := time.Duration(options.TimeoutMs()) * time.Millisecond
 	recvSocket.SetSockOptTimeval(trace_socket.SOL_SOCKET, trace_socket.SO_RCVTIMEO, &timeout)
 
+	// Get local IP address and bind inbound socket to it
+	localAddr, err := trace_net.LocalNonLoopbackIP(destIPFamily)
+	if err != nil {
+		return result, err
+	}
 	if err := recvSocket.Bind(options.Port(), localAddr); err != nil {
 		return result, err
 	}
