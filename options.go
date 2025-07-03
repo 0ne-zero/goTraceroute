@@ -9,8 +9,8 @@ const (
 	DefaultPacketSize = 52
 )
 
-// TracerouteOptions holds configuration for a traceroute operation.
-type TracerouteOptions struct {
+// tracerouteOptions holds configuration for a traceroute operation.
+type tracerouteOptions struct {
 	port       int
 	maxHops    int
 	firstHop   int
@@ -20,8 +20,8 @@ type TracerouteOptions struct {
 }
 
 // NewTracerouteOptions returns TracerouteOptions initialized with defaults.
-func NewTracerouteOptions() *TracerouteOptions {
-	return &TracerouteOptions{
+func NewTracerouteOptions() *tracerouteOptions {
+	return &tracerouteOptions{
 		port:       DefaultPort,
 		maxHops:    DefaultMaxHops,
 		firstHop:   DefaultFirstHop,
@@ -31,16 +31,16 @@ func NewTracerouteOptions() *TracerouteOptions {
 	}
 }
 
-func (o *TracerouteOptions) Port() int       { return o.port }
-func (o *TracerouteOptions) MaxHops() int    { return o.maxHops }
-func (o *TracerouteOptions) FirstHop() int   { return o.firstHop }
-func (o *TracerouteOptions) TimeoutMs() int  { return o.timeoutMs }
-func (o *TracerouteOptions) Retries() int    { return o.retries }
-func (o *TracerouteOptions) PacketSize() int { return o.packetSize }
+func (o *tracerouteOptions) Port() int       { return o.port }
+func (o *tracerouteOptions) MaxHops() int    { return o.maxHops }
+func (o *tracerouteOptions) FirstHop() int   { return o.firstHop }
+func (o *tracerouteOptions) TimeoutMs() int  { return o.timeoutMs }
+func (o *tracerouteOptions) Retries() int    { return o.retries }
+func (o *tracerouteOptions) PacketSize() int { return o.packetSize }
 
-func (o *TracerouteOptions) SetPort(port int)           { o.port = port }
-func (o *TracerouteOptions) SetMaxHops(maxHops int)     { o.maxHops = maxHops }
-func (o *TracerouteOptions) SetFirstHop(firstHop int)   { o.firstHop = firstHop }
-func (o *TracerouteOptions) SetTimeoutMs(timeoutMs int) { o.timeoutMs = timeoutMs }
-func (o *TracerouteOptions) SetRetries(retries int)     { o.retries = retries }
-func (o *TracerouteOptions) SetPacketSize(size int)     { o.packetSize = size }
+func (o *tracerouteOptions) SetPort(port int)           { o.port = port }
+func (o *tracerouteOptions) SetMaxHops(maxHops int)     { o.maxHops = maxHops }
+func (o *tracerouteOptions) SetFirstHop(firstHop int)   { o.firstHop = firstHop }
+func (o *tracerouteOptions) SetTimeoutMs(timeoutMs int) { o.timeoutMs = timeoutMs }
+func (o *tracerouteOptions) SetRetries(retries int)     { o.retries = retries }
+func (o *tracerouteOptions) SetPacketSize(size int)     { o.packetSize = size }
