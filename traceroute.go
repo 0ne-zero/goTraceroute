@@ -1,7 +1,6 @@
 package traceroute
 
 import (
-	"syscall"
 	"time"
 
 	"net"
@@ -11,7 +10,7 @@ import (
 )
 
 // Traceroute performs a traceroute to the destination using the given options and optional channels.
-func Traceroute(dest string, options *TracerouteOptions, chans ...chan TracerouteHop) (TracerouteResult, error) {
+func Traceroute(dest string, options *tracerouteOptions, chans ...chan TracerouteHop) (TracerouteResult, error) {
 	var result TracerouteResult
 	result.Hops = []TracerouteHop{}
 
@@ -32,7 +31,7 @@ func Traceroute(dest string, options *TracerouteOptions, chans ...chan Tracerout
 	}
 	defer sendSocket.Close()
 
-	recvSocket, err := trace_socket.NewSocket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
+	recvSocket, err := trace_socket.NewSocket(trace_socket.AF_INET, trace_socket.SOCK_RAW, trace_socket.IPPROTO_ICMP)
 	if err != nil {
 		return result, err
 	}
