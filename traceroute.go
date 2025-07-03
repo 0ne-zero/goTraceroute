@@ -1,6 +1,7 @@
 package traceroute
 
 import (
+	"errors"
 	"time"
 
 	"net"
@@ -68,7 +69,7 @@ func Traceroute(dest string, options *tracerouteOptions, chans ...chan Tracerout
 
 		// Send UDP packet with specified Time-To-Live to probe
 		start := time.Now()
-		if err := sendProbe(sendSocket, ttl, options.Port(), destAddr); err != nil {
+		if err := sendProbe(sendSocket, addressFamily, ttl, options.Port(), destAddr); err != nil {
 			return result, err
 		}
 
@@ -113,9 +114,17 @@ func Traceroute(dest string, options *tracerouteOptions, chans ...chan Tracerout
 	}
 }
 
-func sendProbe(sock trace_socket.Socket, ttl, port int, dest net.IP) error {
-	if err := sock.SetSockOptInt(trace_socket.IPPROTO_IP, trace_socket.IP_TTL, ttl); err != nil {
-		return err
+func sendProbe(sock trace_socket.Socket, af, ttl, port int, dest net.IP) error {
+	if af == trace_socket.AF_INET {
+		if err := sock.SetSockOptInt(trace_socket.IPPROTO_IP, trace_socket.IP_TTL, ttl); err != nil {
+			return err
+		}
+	} else if af == trace_socket.AF_INET6 {
+		if err := sock.SetSockOptInt(trace_socket.IPPROTO_IPV6, trace_socket.IPV6_UNICAST_HOPS, ttl); err != nil {
+			return err
+		}
+	} else {
+		return errors.New("invalid address family")
 	}
 	return sock.SendTo([]byte{0x0}, 0, port, dest)
 }
