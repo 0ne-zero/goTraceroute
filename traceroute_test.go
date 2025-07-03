@@ -6,10 +6,14 @@ import (
 )
 
 func printHop(hop TracerouteHop) {
-	fmt.Printf("%-3d %v (%v)  %v\n", hop.TTL, hop.HostOrAddressString(), hop.AddressString(), hop.ElapsedTime)
+	if hop.Address == nil && hop.Host == "" {
+		fmt.Printf("%-3d * (*)  %v\n", hop.TTL, hop.ElapsedTime)
+	} else {
+		fmt.Printf("%-3d %v (%v)  %v\n", hop.TTL, hop.HostOrAddressString(), hop.AddressString(), hop.ElapsedTime)
+	}
 }
 
-func TestTraceroute(t *testing.T) {
+func TestTracerouteIPv4(t *testing.T) {
 	fmt.Println("Testing synchronous traceroute IPv4:")
 	options := NewTracerouteOptions()
 	out, err := Traceroute("google.com", options)
@@ -45,8 +49,8 @@ func TestTracerouteIPv6(t *testing.T) {
 	fmt.Println()
 
 }
-func TestTraceouteChannel(t *testing.T) {
-	fmt.Println("\nTesting asynchronous traceroute:")
+func TestTraceouteChannelIPv4(t *testing.T) {
+	fmt.Println("\nTesting asynchronous traceroute IPv4:")
 	c := make(chan TracerouteHop)
 	go func() {
 		for {
@@ -61,6 +65,31 @@ func TestTraceouteChannel(t *testing.T) {
 
 	options := NewTracerouteOptions()
 	out, err := Traceroute("google.com", options, c)
+	if err == nil {
+		if len(out.Hops) == 0 {
+			t.Errorf("TestTracerouteChannel failed. Expected at least one hop")
+		}
+	} else {
+		t.Errorf("TestTraceroute failed due to an error: %v", err)
+	}
+}
+
+func TestTraceouteChannelIPv6(t *testing.T) {
+	fmt.Println("\nTesting asynchronous traceroute IPv6:")
+	c := make(chan TracerouteHop)
+	go func() {
+		for {
+			hop, ok := <-c
+			if !ok {
+				fmt.Println()
+				return
+			}
+			printHop(hop)
+		}
+	}()
+
+	options := NewTracerouteOptions()
+	out, err := Traceroute("2001:4860:4860::8888", options, c)
 	if err == nil {
 		if len(out.Hops) == 0 {
 			t.Errorf("TestTracerouteChannel failed. Expected at least one hop")
