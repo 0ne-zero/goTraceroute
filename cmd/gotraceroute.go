@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/aeden/traceroute"
+	"github.com/0ne-zero/traceroute"
 )
 
 func printHop(hop traceroute.TracerouteHop) {

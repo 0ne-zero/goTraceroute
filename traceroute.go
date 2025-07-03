@@ -6,8 +6,8 @@ import (
 
 	"net"
 
-	trace_net "github.com/aeden/traceroute/net"
-	trace_socket "github.com/aeden/traceroute/net/socket"
+	trace_net "github.com/0ne-zero/traceroute/net"
+	trace_socket "github.com/0ne-zero/traceroute/net/socket"
 )
 
 // Traceroute performs a traceroute to the destination using the given options and optional channels.
@@ -80,7 +80,7 @@ func Traceroute(dest string, options *tracerouteOptions, chans ...chan Tracerout
 		if err != nil {
 			// Continue to the next ttl if the maximum retry has been done
 			if retryCounter == options.MaxRetries() {
-				hop := createHop(false, from, n, elapsed, ttl)
+				hop := newTracerouteHop(false, from, n, elapsed, ttl)
 				notify(hop, chans)
 				result.Hops = append(result.Hops, hop)
 
@@ -94,7 +94,7 @@ func Traceroute(dest string, options *tracerouteOptions, chans ...chan Tracerout
 			// Retry the traceroute with the same TTL
 			retryCounter += 1
 		} else {
-			hop := createHop(true, from, n, elapsed, ttl)
+			hop := newTracerouteHop(true, from, n, elapsed, ttl)
 			notify(hop, chans)
 			result.Hops = append(result.Hops, hop)
 
@@ -133,18 +133,4 @@ func receiveProbe(sock trace_socket.Socket, packetSize int) (int, net.IP, error)
 	buf := make([]byte, packetSize)
 	n, from, err := sock.RecvFrom(buf, 0)
 	return n, from, err
-}
-
-func createHop(success bool, addr net.IP, n int, elapsed time.Duration, ttl int) TracerouteHop {
-	hop := TracerouteHop{
-		Success:     success,
-		Address:     addr,
-		Bytes:       n,
-		ElapsedTime: elapsed,
-		TTL:         ttl,
-	}
-	if success {
-		hop.Host = trace_net.ReverseLookup(hop.AddressString(), time.Duration(DefaultTimeoutMs)*time.Millisecond)
-	}
-	return hop
 }

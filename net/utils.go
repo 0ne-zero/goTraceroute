@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/aeden/traceroute/net/socket"
+	"github.com/0ne-zero/traceroute/net/socket"
 )
 
 // Returns the first non-loopback IP address (IPv4 or IPv6).

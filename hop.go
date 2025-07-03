@@ -3,6 +3,8 @@ package traceroute
 import (
 	"net"
 	"time"
+
+	trace_net "github.com/0ne-zero/traceroute/net"
 )
 
 // TracerouteHop represents a single hop in a traceroute operation.
@@ -13,6 +15,20 @@ type TracerouteHop struct {
 	Bytes       int           // Number of bytes received (optional)
 	ElapsedTime time.Duration // Round-trip time for the probe
 	TTL         int           // Time-To-Live value for this hop
+}
+
+func newTracerouteHop(success bool, addr net.IP, bytes int, elapsed time.Duration, ttl int) TracerouteHop {
+	hop := TracerouteHop{
+		Success:     success,
+		Address:     addr,
+		Bytes:       bytes,
+		ElapsedTime: elapsed,
+		TTL:         ttl,
+	}
+	if success {
+		hop.Host = trace_net.ReverseLookup(hop.AddressString(), time.Duration(DefaultTimeoutMs)*time.Millisecond)
+	}
+	return hop
 }
 
 // AddressString returns the string representation of the IP address or empty string if nil.
