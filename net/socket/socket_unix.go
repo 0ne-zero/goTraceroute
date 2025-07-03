@@ -76,13 +76,17 @@ func (s *unixSocket) Bind(port int, ip net.IP) error {
 
 func (s *unixSocket) SendTo(data []byte, flags, port int, addr net.IP) error {
 	if s.af == AF_INET {
-		var a [4]byte
-		copy(a[:], addr)
-		return unix.Sendto(s.fd, data, flags, &unix.SockaddrInet4{Port: port, Addr: a})
+		sockAddr, err := toSockaddrInet4(addr, port)
+		if err != nil {
+			return err
+		}
+		return unix.Sendto(s.fd, data, flags, sockAddr)
 	} else {
-		var a [16]byte
-		copy(a[:], addr)
-		return unix.Sendto(s.fd, data, flags, &unix.SockaddrInet6{Port: port, Addr: a})
+		sockAddr, err := toSockaddrInet6(addr, port)
+		if err != nil {
+			return err
+		}
+		return unix.Sendto(s.fd, data, flags, sockAddr)
 	}
 }
 
