@@ -10,7 +10,8 @@ type Socket interface {
 	Close() error
 	SetSockOptTimeval(level, opt int, tv *time.Duration) error
 	SetSockOptInt(level, opt, value int) error
-	Bind(port int, addr net.IP) error
+	// NEVER USED
+	// Bind(port int, addr net.IP) error
 	SendTo(data []byte, flags, port int, addr net.IP) error
 	RecvFrom(buf []byte, flags int) (n int, fromAddr net.IP, err error)
 }

@@ -56,24 +56,6 @@ func (s *unixSocket) SetSockOptInt(level, opt, value int) error {
 	return unix.SetsockoptInt(s.fd, level, opt, value)
 }
 
-func (s *unixSocket) Bind(port int, ip net.IP) error {
-	if s.af == unix.AF_INET {
-		addr, err := toSockaddrInet4(ip, port)
-		if err != nil {
-			return err
-		}
-		return unix.Bind(s.fd, addr)
-	} else if s.af == unix.AF_INET6 {
-		addr, err := toSockaddrInet6(ip, port)
-		if err != nil {
-			return err
-		}
-		return unix.Bind(s.fd, addr)
-	}
-	// panic("Invalid address family set on socket")
-	return errors.New("invalid address family has been set on socket")
-}
-
 func (s *unixSocket) SendTo(data []byte, flags, port int, addr net.IP) error {
 	if s.af == AF_INET {
 		sockAddr, err := toSockaddrInet4(addr, port)
@@ -106,10 +88,29 @@ func (s *unixSocket) RecvFrom(buf []byte, flags int) (int, net.IP, error) {
 	}
 }
 
+// NEVER USED
+// func (s *unixSocket) Bind(port int, ip net.IP) error {
+// 	if s.af == unix.AF_INET {
+// 		addr, err := toSockaddrInet4(ip, port)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		return unix.Bind(s.fd, addr)
+// 	} else if s.af == unix.AF_INET6 {
+// 		addr, err := toSockaddrInet6(ip, port)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		return unix.Bind(s.fd, addr)
+// 	}
+// 	// panic("Invalid address family set on socket")
+// 	return errors.New("unsupported address family")
+// }
+
 // Converts net.IP to *unix.SockaddrInet4
 func toSockaddrInet4(ip net.IP, port int) (*unix.SockaddrInet4, error) {
 	if ip = ip.To4(); ip == nil {
-		return nil, errors.New("Bind IP is not an IPv4")
+		return nil, errors.New("IP is not a valid IPv4")
 	}
 	addr := &unix.SockaddrInet4{Addr: [4]byte(ip), Port: port}
 	return addr, nil
@@ -118,7 +119,7 @@ func toSockaddrInet4(ip net.IP, port int) (*unix.SockaddrInet4, error) {
 // Converts net.IP to *unix.SockaddrInet6
 func toSockaddrInet6(ip net.IP, port int) (*unix.SockaddrInet6, error) {
 	if ip = ip.To16(); ip == nil {
-		return nil, errors.New("Bind IP is not an IPv6")
+		return nil, errors.New("IP is not a valid IPv6")
 	}
 	addr := &unix.SockaddrInet6{Addr: [16]byte(ip), Port: port}
 	return addr, nil

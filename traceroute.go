@@ -48,18 +48,29 @@ func Traceroute(dest string, options *tracerouteOptions, chans ...chan Tracerout
 	timeout := time.Duration(options.TimeoutMs()) * time.Millisecond
 	recvSocket.SetSockOptTimeval(trace_socket.SOL_SOCKET, trace_socket.SO_RCVTIMEO, &timeout)
 
-	// Get local IP address and bind inbound socket to it
-	localAddr, err := trace_net.LocalNonLoopbackIP(destIPFamily)
-	if err != nil {
-		return result, err
-	}
-	if err := recvSocket.Bind(options.Port(), localAddr); err != nil {
-		return result, err
-	}
+	// We don't explicitly bind the raw ICMP/ICMPv6 receive socket to a local address.
+	// By default, the kernel will deliver incoming ICMP Time Exceeded replies to our raw socket,
+	// regardless of which local IP they arrive on or which interface they come through.
+	//
+	// This is because the OS routes outgoing probe packets (UDP with incremented TTL/Hop Limit)
+	// and keeps track of the source IP. Routers on the path send ICMP replies back to that source IP.
+	// Since our raw socket is open and unbound, the kernel delivers those replies to us automatically.
+	//
+	// Binding the raw socket to a specific local IP or port is usually unnecessary.
+	// So instead of binding to "0.0.0.0" or "::", we just let the raw socket listen for all incoming ICMP packets.
+
+	// If we wanted to bind to winldcard or any specific IP, the code would be:
+	//     localAddr := net.ParseIP("0.0.0.0")
+	//     if addressFamily == trace_socket.AF_INET6 {
+	// 	       localAddr = net.ParseIP("::")
+	//     }
+
+	//     if err := recvSocket.Bind(options.Port(), localAddr); err != nil {
+	// 	       return result, err
+	//     }
 
 	ttl := options.FirstHop()
 	retryCounter := 0
-
 	for {
 		// Stop traceroute and return the result if ttl exceeded maximum allowed hops
 		if ttl > options.MaxHops() {

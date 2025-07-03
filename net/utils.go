@@ -9,30 +9,6 @@ import (
 	"github.com/0ne-zero/traceroute/net/socket"
 )
 
-// Returns the first non-loopback IP address (IPv4 or IPv6).
-func LocalNonLoopbackIP(family int) (net.IP, error) {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, a := range addrs {
-		ipnet, ok := a.(*net.IPNet)
-		if !ok {
-			continue
-		}
-		if ipnet.IP.IsLoopback() || (ipnet.IP.To16() != nil && ipnet.IP.IsLinkLocalUnicast()) {
-			continue
-		}
-
-		if GetIPFamily(ipnet.IP) == family {
-			return ipnet.IP, nil
-		}
-	}
-
-	return nil, errors.New("no non-loopback IP address found with given family")
-}
-
 // Resolves hostname to IP
 func ResolveHostnameToIP(dest string) (net.IP, error) {
 	addrs, err := net.LookupHost(dest)
@@ -75,3 +51,28 @@ func GetIPFamily(ip net.IP) int {
 	}
 	return -1
 }
+
+// Returns the first non-loopback IP address (IPv4 or IPv6).
+// NEVER USED
+// func LocalNonLoopbackIP(family int) (net.IP, error) {
+// 	addrs, err := net.InterfaceAddrs()
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	for _, a := range addrs {
+// 		ipnet, ok := a.(*net.IPNet)
+// 		if !ok {
+// 			continue
+// 		}
+// 		if ipnet.IP.IsLoopback() || (ipnet.IP.To16() != nil && ipnet.IP.IsLinkLocalUnicast()) {
+// 			continue
+// 		}
+
+// 		if GetIPFamily(ipnet.IP) == family {
+// 			return ipnet.IP, nil
+// 		}
+// 	}
+
+// 	return nil, errors.New("no non-loopback IP address found with given family")
+// }

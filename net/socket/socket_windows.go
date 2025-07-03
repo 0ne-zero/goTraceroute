@@ -63,37 +63,6 @@ func (s *windowsSocket) SetSockOptInt(level, opt, value int) error {
 	return windows.SetsockoptInt(s.handle, level, opt, value)
 }
 
-func toSockaddrInet4(ip net.IP, port int) (*windows.SockaddrInet4, error) {
-	if ip = ip.To4(); ip == nil {
-		return nil, errors.New("IP is not valid IPv4")
-	}
-	return &windows.SockaddrInet4{Port: port, Addr: [4]byte(ip)}, nil
-}
-
-func toSockaddrInet6(ip net.IP, port int) (*windows.SockaddrInet6, error) {
-	if ip = ip.To16(); ip == nil {
-		return nil, errors.New("IP is not valid IPv6")
-	}
-	return &windows.SockaddrInet6{Port: port, Addr: [16]byte(ip)}, nil
-}
-
-func (s *windowsSocket) Bind(port int, ip net.IP) error {
-	if s.family == AF_INET {
-		sa, err := toSockaddrInet4(ip, port)
-		if err != nil {
-			return err
-		}
-		return windows.Bind(s.handle, sa)
-	} else if s.family == AF_INET6 {
-		sa, err := toSockaddrInet6(ip, port)
-		if err != nil {
-			return err
-		}
-		return windows.Bind(s.handle, sa)
-	}
-	return errors.New("unsupported address family")
-}
-
 func (s *windowsSocket) SendTo(data []byte, flags, port int, ip net.IP) error {
 	if s.family == AF_INET {
 		sa, err := toSockaddrInet4(ip, port)
@@ -124,4 +93,36 @@ func (s *windowsSocket) RecvFrom(buf []byte, flags int) (int, net.IP, error) {
 	default:
 		return 0, nil, errors.New("unknown socket address type")
 	}
+}
+
+// NEVER USED
+// func (s *windowsSocket) Bind(port int, ip net.IP) error {
+// 	if s.family == AF_INET {
+// 		sa, err := toSockaddrInet4(ip, port)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		return windows.Bind(s.handle, sa)
+// 	} else if s.family == AF_INET6 {
+// 		sa, err := toSockaddrInet6(ip, port)
+// 		if err != nil {
+// 			return err
+// 		}
+// 		return windows.Bind(s.handle, sa)
+// 	}
+// 	return errors.New("unsupported address family")
+// }
+
+func toSockaddrInet4(ip net.IP, port int) (*windows.SockaddrInet4, error) {
+	if ip = ip.To4(); ip == nil {
+		return nil, errors.New("IP is not valid IPv4")
+	}
+	return &windows.SockaddrInet4{Port: port, Addr: [4]byte(ip)}, nil
+}
+
+func toSockaddrInet6(ip net.IP, port int) (*windows.SockaddrInet6, error) {
+	if ip = ip.To16(); ip == nil {
+		return nil, errors.New("IP is not valid IPv6")
+	}
+	return &windows.SockaddrInet6{Port: port, Addr: [16]byte(ip)}, nil
 }
