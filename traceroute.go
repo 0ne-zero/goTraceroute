@@ -8,6 +8,8 @@ import (
 	"net"
 	"syscall"
 	"time"
+
+	"github.com/aeden/traceroute/socket"
 )
 
 const DEFAULT_PORT = 33434
@@ -17,24 +19,26 @@ const DEFAULT_TIMEOUT_MS = 500
 const DEFAULT_RETRIES = 3
 const DEFAULT_PACKET_SIZE = 52
 
-// Return the first non-loopback address as a 4 byte IP address. This address
-// is used for sending packets out.
-func socketAddr() (addr [4]byte, err error) {
+// Return the first non-loopback IP address (IPv4 or IPv6).
+func socketAddr() (ip net.IP, err error) {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
-		return
+		return nil, err
 	}
 
 	for _, a := range addrs {
-		if ipnet, ok := a.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if len(ipnet.IP.To4()) == net.IPv4len {
-				copy(addr[:], ipnet.IP.To4())
-				return
-			}
+		ipnet, ok := a.(*net.IPNet)
+		if !ok || ipnet.IP.IsLoopback() {
+			continue
 		}
+
+		ip := ipnet.IP
+
+		// Return first IPv4 or IPv6 address
+		return ip, nil
 	}
-	err = errors.New("You do not appear to be connected to the Internet")
-	return
+
+	return nil, errors.New("no non-loopback IP address found")
 }
 
 // Given a host name convert it to a 4 byte IP address.
@@ -131,11 +135,11 @@ func (options *TracerouteOptions) SetPacketSize(packetSize int) {
 // TracerouteHop type
 type TracerouteHop struct {
 	Success     bool
-	Address     net.IP
-	Host        string
-	N           int
-	ElapsedTime time.Duration
-	TTL         int
+	Address     net.IP        // IP Address of the node on the network
+	Host        string        // Domain name of the node on the netwrok
+	N           int           // Received bytes (It's redundant actually in here, don't need it)
+	ElapsedTime time.Duration // Round-Time-Trip
+	TTL         int           // Time-To-Live of the node on the network (answers how far the node is)
 }
 
 func (hop *TracerouteHop) AddressString() string {
@@ -188,24 +192,24 @@ func Traceroute(dest string, options *TracerouteOptions, c ...chan TracerouteHop
 	}
 
 	// Set up the socket to send packets out.
-	sendSocket, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_DGRAM, syscall.IPPROTO_UDP)
+	sendSocket, err := socket.NewSocket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
 	if err != nil {
 		return result, err
 	}
-	defer syscall.Close(sendSocket)
+	defer sendSocket.Close()
 	// Set up the socket to receive inbound packets
-	recvSocket, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
+	recvSocket, err := socket.NewSocket(syscall.AF_INET, syscall.SOCK_RAW, syscall.IPPROTO_ICMP)
 	if err != nil {
 		return result, err
 	}
-	defer syscall.Close(recvSocket)
+	defer recvSocket.Close()
 
 	// This sets the timeout to wait for a response from the remote host
-	tv := syscall.NsecToTimeval(int64(options.TimeoutMs()) * int64(time.Millisecond))
-	syscall.SetsockoptTimeval(recvSocket, syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, &tv)
+	timeout := time.Duration(options.TimeoutMs()) * time.Millisecond
+	recvSocket.SetSockOptTimeval(socket.SOL_SOCKET, socket.SO_RCVTIMEO, &timeout)
 
 	// Bind to the local socket to listen for ICMP packets
-	syscall.Bind(recvSocket, &syscall.SockaddrInet4{Port: options.Port(), Addr: socketAddr})
+	recvSocket.Bind(options.Port(), socketAddr)
 
 	ttl := options.FirstHop()
 	retry := 0
@@ -214,21 +218,16 @@ func Traceroute(dest string, options *TracerouteOptions, c ...chan TracerouteHop
 		start := time.Now()
 
 		// This sets the current hop TTL
-		syscall.SetsockoptInt(sendSocket, syscall.IPPROTO_IP, syscall.IP_TTL, ttl)
+		sendSocket.SetSockOptInt(socket.IPPROTO_IP, socket.IP_TTL, ttl)
 
-		destIPBytes, err := NetIPToFourByte(destAddr)
-		if err != nil {
-			return result, err
-		}
 		// Send a single null byte UDP packet
-		syscall.Sendto(sendSocket, []byte{0x0}, 0, &syscall.SockaddrInet4{Port: options.Port(), Addr: destIPBytes})
+		sendSocket.SendTo([]byte{0x0}, 0, options.Port(), destAddr)
 
 		var p = make([]byte, options.PacketSize())
-		n, from, err := syscall.Recvfrom(recvSocket, p, 0)
+		n, from, err := recvSocket.RecvFrom(p, 0)
 		elapsed := time.Since(start)
 		if err == nil {
-			currentNetIP, _ := FourByteToNetIP(from.(*syscall.SockaddrInet4).Addr)
-			hop := TracerouteHop{Success: true, Address: currentNetIP, N: n, ElapsedTime: elapsed, TTL: ttl}
+			hop := TracerouteHop{Success: true, Address: from, N: n, ElapsedTime: elapsed, TTL: ttl}
 
 			// Do reverse lookup
 			hop.Host = reverseLookup(hop.AddressString(), time.Duration(DEFAULT_TIMEOUT_MS))
@@ -240,7 +239,7 @@ func Traceroute(dest string, options *TracerouteOptions, c ...chan TracerouteHop
 			ttl += 1
 			retry = 0
 
-			if ttl > options.MaxHops() || currentNetIP.Equal(destAddr) {
+			if ttl > options.MaxHops() || from.Equal(destAddr) {
 				closeNotify(c)
 				return result, nil
 			}
