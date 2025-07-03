@@ -108,7 +108,7 @@ func (s *unixSocket) RecvFrom(buf []byte, flags int) (int, net.IP, error) {
 
 // Converts net.IP to *unix.SockaddrInet4
 func toSockaddrInet4(ip net.IP, port int) (*unix.SockaddrInet4, error) {
-	if ip.To4() == nil {
+	if ip = ip.To4(); ip == nil {
 		return nil, errors.New("Bind IP is not an IPv4")
 	}
 	addr := &unix.SockaddrInet4{Addr: [4]byte(ip), Port: port}
@@ -117,7 +117,7 @@ func toSockaddrInet4(ip net.IP, port int) (*unix.SockaddrInet4, error) {
 
 // Converts net.IP to *unix.SockaddrInet6
 func toSockaddrInet6(ip net.IP, port int) (*unix.SockaddrInet6, error) {
-	if ip.To16() == nil {
+	if ip = ip.To16(); ip == nil {
 		return nil, errors.New("Bind IP is not an IPv6")
 	}
 	addr := &unix.SockaddrInet6{Addr: [16]byte(ip), Port: port}
