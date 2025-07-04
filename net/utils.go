@@ -2,30 +2,38 @@ package net
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"net"
 	"time"
 
 	"github.com/0ne-zero/traceroute/net/socket"
 )
 
-// Resolves hostname to IP
-func ResolveHostnameToIP(dest string) (net.IP, error) {
+// ResolveHostnameToIP resolves a hostname to an IP address,
+// preferring the specified address family (e.g., IPv4Family or IPv6Family).
+func ResolveHostnameToIP(dest string, preferAddressFamily int) (net.IP, error) {
 	addrs, err := net.LookupHost(dest)
 	if err != nil {
 		return nil, err
 	}
+
+	var fallbackIPs []net.IP
 	for _, addr := range addrs {
-		ipAddr, err := net.ResolveIPAddr("ip", addr)
-		if err != nil {
+		ip := net.ParseIP(addr)
+		if ip == nil {
 			continue
 		}
-		// Return the first valid IP (IPv4 or IPv6)
-		if ipAddr.IP != nil {
-			return ipAddr.IP, nil
+		if GetIPFamily(ip) == preferAddressFamily {
+			return ip, nil
 		}
+		fallbackIPs = append(fallbackIPs, ip)
 	}
-	return nil, errors.New("no valid IP address found for host")
+
+	if len(fallbackIPs) > 0 {
+		return fallbackIPs[0], nil
+	}
+
+	return nil, fmt.Errorf("no valid IP address found for host %s", dest)
 }
 
 // Resolves IP address to hostname

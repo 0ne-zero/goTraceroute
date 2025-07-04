@@ -15,7 +15,7 @@ func Traceroute(dest string, options *tracerouteOptions, chans ...chan Tracerout
 	var result TracerouteResult
 	result.Hops = []TracerouteHop{}
 
-	destAddr, err := trace_net.ResolveHostnameToIP(dest)
+	destAddr, err := trace_net.ResolveHostnameToIP(dest, options.PreferAddressFamily())
 	if err != nil {
 		return result, err
 	}
