@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -52,8 +53,8 @@ func main() {
 		flags.Host, ipAddr.String(), opts.MaxHops(), opts.PacketSize())
 
 	// Setup Ctrl+C handling
-	// ctx, cancel := context.WithCancel(context.Background())
-	// defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
@@ -70,8 +71,7 @@ func main() {
 		}
 	}()
 
-	_, err = traceroute.Traceroute(flags.Host, opts, hopChan)
-	//_, err = traceroute.TracerouteContext(ctx, flags.Host, opts, hopChan)
+	_, err = traceroute.TracerouteContext(ctx, flags.Host, opts, hopChan)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Traceroute error: %v\n", err)
 		os.Exit(1)
