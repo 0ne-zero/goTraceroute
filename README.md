@@ -1,4 +1,4 @@
-🛰️ GoTraceroute
+#### 🛰️ GoTraceroute
 
 A flexible, cross-platform traceroute library and CLI tool written in Go.
 Supports IPv4 & IPv6, and works on Linux, macOS, and Windows.
@@ -7,24 +7,27 @@ Supports IPv4 & IPv6, and works on Linux, macOS, and Windows.
 
 ---
 
-✏️ Features
+#### ✏️ Features
 
 ✅ IPv4 and IPv6 support
+
 ✅ Works transparently across Unix and Windows (using golang.org/x/sys + build tags)
+
 ✅ Simple context-aware API for use as a library or standalone CLI tool
 
 
 ---
 
-⚙️ Usage
+#### ⚙️ Usage
 
-CLI
+###### CLI:
 
 Build and run:
 
+```bash
 go build -o gotraceroute ./cmd/gotraceroute
 sudo ./gotraceroute -h
-
+```
 > Note: On Linux and macOS, raw sockets require sudo.
 On Windows, run from an elevated terminal.
 
@@ -33,10 +36,11 @@ On Windows, run from an elevated terminal.
 
 ---
 
-Library
+###### Library:
 
 Import and call:
 
+```go
 import (
     "context"
     "fmt"
@@ -70,10 +74,10 @@ func main() {
     // Use the final aggregated result if you need
     fmt.Println("Traceroute finished. Total hops:", len(result.Hops))
 }
-
+```
 
 ---
 
-📚 References
+#### 📚 References
 
 [RFC 792 — Internet Control Message Protocol (ICMP)](https://datatracker.ietf.org/doc/html/rfc792)
