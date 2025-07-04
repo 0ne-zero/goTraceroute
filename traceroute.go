@@ -126,15 +126,16 @@ func Traceroute(dest string, options *tracerouteOptions, chans ...chan Tracerout
 }
 
 func sendProbe(sock trace_socket.Socket, af, ttl, port int, dest net.IP) error {
-	if af == trace_socket.AF_INET {
+	switch af {
+	case trace_socket.AF_INET:
 		if err := sock.SetSockOptInt(trace_socket.IPPROTO_IP, trace_socket.IP_TTL, ttl); err != nil {
 			return err
 		}
-	} else if af == trace_socket.AF_INET6 {
+	case trace_socket.AF_INET6:
 		if err := sock.SetSockOptInt(trace_socket.IPPROTO_IPV6, trace_socket.IPV6_UNICAST_HOPS, ttl); err != nil {
 			return err
 		}
-	} else {
+	default:
 		return errors.New("invalid address family")
 	}
 	return sock.SendTo([]byte{0x0}, 0, port, dest)
