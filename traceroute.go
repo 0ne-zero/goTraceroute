@@ -3,139 +3,151 @@ package traceroute
 import (
 	"context"
 	"errors"
-	"time"
-
 	"net"
+	"time"
 
 	trace_net "github.com/0ne-zero/traceroute/net"
 	trace_socket "github.com/0ne-zero/traceroute/net/socket"
 )
 
-// Traceroute performs a traceroute to the destination using the given options and optional channels.
+// Traceroute performs a traceroute to the destination using the given options.
+// This is the default entry point without cancellation.
 func Traceroute(dest string, options *tracerouteOptions, chans ...chan TracerouteHop) (TracerouteResult, error) {
 	return TracerouteContext(context.Background(), dest, options, chans...)
 }
 
-// TracerouteContext performs a traceroute to the destination using the given options and optional channels.
-// It stops early if the context is canceled.
+// TracerouteContext performs a traceroute that can be cancelled via context.
+// It works by sending UDP packets with increasing TTL/hop limit and listening for ICMP Time Exceeded or Destination Unreachable replies.
 func TracerouteContext(ctx context.Context, dest string, options *tracerouteOptions, chans ...chan TracerouteHop) (TracerouteResult, error) {
 	var result TracerouteResult
 	result.Hops = []TracerouteHop{}
 
+	// Resolve destination hostname to IP (IPv4 or IPv6 depending on preference)
 	destAddr, err := trace_net.ResolveHostnameToIP(dest, options.PreferAddressFamily())
 	if err != nil {
 		return result, err
 	}
 	result.DestinationAddress = destAddr
 
-	// Setup socket configs based on destination IP version
-	addressFamily := trace_socket.AF_INET
-	icmpProto := trace_socket.IPPROTO_ICMP
-	destIPFamily := trace_net.GetIPFamily(destAddr)
-	if destIPFamily == trace_socket.AF_INET6 {
-		addressFamily = trace_socket.AF_INET6
-		icmpProto = trace_socket.IPPROTO_ICMPV6
-	}
+	// Choose address family and ICMP protocol based on destination IP
+	af, icmpProto := getSocketConfig(destAddr)
 
-	// Create outbound socket
-	sendSocket, err := trace_socket.NewSocket(addressFamily, trace_socket.SOCK_DGRAM, trace_socket.IPPROTO_UDP)
+	// Create outbound UDP socket for sending probe packets
+	sendSocket, err := trace_socket.NewSocket(af, trace_socket.SOCK_DGRAM, trace_socket.IPPROTO_UDP)
 	if err != nil {
 		return result, err
 	}
 	defer sendSocket.Close()
 
-	// Create inbound socket
-	recvSocket, err := trace_socket.NewSocket(addressFamily, trace_socket.SOCK_RAW, icmpProto)
+	// Bind send socket to wildcard IP and fixed source port (used to match replies)
+	bindIP := trace_net.GetLocalWildcardIP(af)
+	if err := sendSocket.Bind(options.SrcPort(), bindIP); err != nil {
+		return result, err
+	}
+
+	// Create raw ICMP socket to receive ICMP Time Exceeded / Destination Unreachable packets
+	recvSocket, err := trace_socket.NewSocket(af, trace_socket.SOCK_RAW, icmpProto)
 	if err != nil {
 		return result, err
 	}
 	defer recvSocket.Close()
 
-	// Set timeout for inbound socket
+	// Set receive timeout on the raw socket
 	timeout := time.Duration(options.TimeoutMs()) * time.Millisecond
 	recvSocket.SetSockOptTimeval(trace_socket.SOL_SOCKET, trace_socket.SO_RCVTIMEO, &timeout)
 
 	ttl := options.FirstHop()
 	retriesLeft := options.MaxRetries()
 
-	for {
-		// Check for context cancellation
+	for ttl <= options.MaxHops() {
+		// Exit early if context is cancelled
 		select {
 		case <-ctx.Done():
 			closeNotify(chans)
 			return result, ctx.Err()
 		default:
-
 		}
 
-		if ttl > options.MaxHops() {
-			closeNotify(chans)
-			return result, nil
-		}
-
-		// Send UDP probe with current TTL
-		start := time.Now()
-		err := sendProbe(sendSocket, addressFamily, ttl, options.Port(), destAddr)
-		if err != nil {
+		// Set TTL / hop limit for the next probe
+		if err := setTTL(sendSocket, af, ttl); err != nil {
 			return result, err
 		}
 
-		// Receive ICMP reply
-		n, from, err := receiveProbe(recvSocket, options.PacketSize())
-		elapsed := time.Since(start)
+		start := time.Now()
 
+		// Send empty UDP packet to destination at specified port
+		// The goal is to trigger ICMP Time Exceeded replies from routers
+		if err := sendSocket.SendTo([]byte{0x0}, 0, options.DestPort(), destAddr); err != nil {
+			return result, err
+		}
+
+		// Receive raw ICMP reply: contains outer IP header + ICMP header + quoted original IP + UDP headers
+		replyData, from, err := receiveProbe(recvSocket)
+		elapsed := time.Since(start)
 		if err != nil {
-			// Retry if retries left, otherwise report timeout hop
+			// Retry this hop if retries left, otherwise record as timeout
 			if retriesLeft > 0 {
 				retriesLeft--
 				continue
 			}
-
-			hop := newTracerouteHop(false, from, n, elapsed, ttl)
+			hop := newTracerouteHop(false, from, len(replyData), elapsed, ttl)
 			notify(hop, chans)
 			result.Hops = append(result.Hops, hop)
 
-			// Reset retries and increase TTL
-			retriesLeft = options.MaxRetries()
+			// Continue probing with higher ttl
 			ttl++
+			retriesLeft = options.MaxRetries()
 			continue
 		}
 
-		// Successful hop
-		hop := newTracerouteHop(true, from, n, elapsed, ttl)
+		// Parse quoted UDP header in ICMP payload to check if the ICMP reply is for our probe
+		srcPort, dstPort, err := trace_net.ParseQuotedUDPHeader(replyData, af)
+		if err != nil || srcPort != options.SrcPort() || dstPort != options.DestPort() {
+			continue
+		}
+
+		// Valid response: add hop to results
+		hop := newTracerouteHop(true, from, len(replyData), elapsed, ttl)
 		notify(hop, chans)
 		result.Hops = append(result.Hops, hop)
 
-		// If reached destination, stop traceroute
+		// Stop if we reached the destination
 		if from.Equal(destAddr) {
 			closeNotify(chans)
 			return result, nil
 		}
 
-		// Reset retries and increase TTL
-		retriesLeft = options.MaxRetries()
 		ttl++
+		retriesLeft = options.MaxRetries()
 	}
+
+	closeNotify(chans)
+	return result, nil
 }
 
-func sendProbe(sock trace_socket.Socket, af, ttl, port int, dest net.IP) error {
+// setTTL sets the TTL/hop limit on the UDP socket for IPv4 or IPv6.
+func setTTL(sock trace_socket.Socket, af, ttl int) error {
 	switch af {
 	case trace_socket.AF_INET:
-		if err := sock.SetSockOptInt(trace_socket.IPPROTO_IP, trace_socket.IP_TTL, ttl); err != nil {
-			return err
-		}
+		return sock.SetSockOptInt(trace_socket.IPPROTO_IP, trace_socket.IP_TTL, ttl)
 	case trace_socket.AF_INET6:
-		if err := sock.SetSockOptInt(trace_socket.IPPROTO_IPV6, trace_socket.IPV6_UNICAST_HOPS, ttl); err != nil {
-			return err
-		}
+		return sock.SetSockOptInt(trace_socket.IPPROTO_IPV6, trace_socket.IPV6_UNICAST_HOPS, ttl)
 	default:
 		return errors.New("invalid address family")
 	}
-	return sock.SendTo([]byte{0x0}, 0, port, dest)
 }
 
-func receiveProbe(sock trace_socket.Socket, packetSize int) (int, net.IP, error) {
-	buf := make([]byte, packetSize)
+// receiveProbe reads raw ICMP reply data and reports sender IP.
+func receiveProbe(sock trace_socket.Socket) ([]byte, net.IP, error) {
+	buf := make([]byte, 512) // enough for IP+ICMP+quoted original packet
 	n, from, err := sock.RecvFrom(buf, 0)
-	return n, from, err
+	return buf[:n], from, err
+}
+
+// getSocketConfig chooses address family and ICMP protocol based on destination IP.
+func getSocketConfig(dest net.IP) (af, icmpProto int) {
+	if trace_net.GetIPFamily(dest) == trace_socket.AF_INET6 {
+		return trace_socket.AF_INET6, trace_socket.IPPROTO_ICMPV6
+	}
+	return trace_socket.AF_INET, trace_socket.IPPROTO_ICMP
 }
