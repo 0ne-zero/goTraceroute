@@ -44,6 +44,25 @@ func newSocket(family, typ, proto int) (Socket, error) {
 	return &windowsSocket{handle: sock, family: family}, nil
 }
 
+// Returns the local port number assigned to the socket.
+// Note: The socket must be bound or have sent data first,
+// otherwise the port may be zero (unassigned).
+func (s *windowsSocket) Port() (int, error) {
+	sa, err := windows.Getsockname(s.handle)
+	if err != nil {
+		return 0, err
+	}
+
+	switch sa := sa.(type) {
+	case *windows.SockaddrInet4:
+		return sa.Port, nil
+	case *windows.SockaddrInet6:
+		return sa.Port, nil
+	default:
+		return 0, errors.New("unknown socket address type")
+	}
+}
+
 func (s *windowsSocket) Close() error {
 	return windows.Closesocket(s.handle)
 }
@@ -95,23 +114,22 @@ func (s *windowsSocket) RecvFrom(buf []byte, flags int) (int, net.IP, error) {
 	}
 }
 
-// NEVER USED
-// func (s *windowsSocket) Bind(port int, ip net.IP) error {
-// 	if s.family == AF_INET {
-// 		sa, err := toSockaddrInet4(ip, port)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		return windows.Bind(s.handle, sa)
-// 	} else if s.family == AF_INET6 {
-// 		sa, err := toSockaddrInet6(ip, port)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		return windows.Bind(s.handle, sa)
-// 	}
-// 	return errors.New("unsupported address family")
-// }
+func (s *windowsSocket) Bind(port int, ip net.IP) error {
+	if s.family == AF_INET {
+		sa, err := toSockaddrInet4(ip, port)
+		if err != nil {
+			return err
+		}
+		return windows.Bind(s.handle, sa)
+	} else if s.family == AF_INET6 {
+		sa, err := toSockaddrInet6(ip, port)
+		if err != nil {
+			return err
+		}
+		return windows.Bind(s.handle, sa)
+	}
+	return errors.New("unsupported address family")
+}
 
 func toSockaddrInet4(ip net.IP, port int) (*windows.SockaddrInet4, error) {
 	if ip = ip.To4(); ip == nil {

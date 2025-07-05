@@ -43,6 +43,24 @@ func newSocket(family, typ, proto int) (Socket, error) {
 	return &unixSocket{fd: fd, af: family}, nil
 }
 
+// Returns the local port number assigned to the socket.
+// Note: The socket must be bound or have sent data first,
+// otherwise the port may be zero (unassigned).
+func (s *unixSocket) Port() (int, error) {
+	sa, err := unix.Getsockname(s.fd)
+	if err != nil {
+		return 0, err
+	}
+
+	switch sa := sa.(type) {
+	case *unix.SockaddrInet4:
+		return sa.Port, nil
+	case *unix.SockaddrInet6:
+		return sa.Port, nil
+	default:
+		return 0, errors.New("unknown socket address type")
+	}
+}
 func (s *unixSocket) Close() error {
 	return unix.Close(s.fd)
 }
@@ -88,24 +106,23 @@ func (s *unixSocket) RecvFrom(buf []byte, flags int) (int, net.IP, error) {
 	}
 }
 
-// NEVER USED
-// func (s *unixSocket) Bind(port int, ip net.IP) error {
-// 	if s.af == unix.AF_INET {
-// 		addr, err := toSockaddrInet4(ip, port)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		return unix.Bind(s.fd, addr)
-// 	} else if s.af == unix.AF_INET6 {
-// 		addr, err := toSockaddrInet6(ip, port)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		return unix.Bind(s.fd, addr)
-// 	}
-// 	// panic("Invalid address family set on socket")
-// 	return errors.New("unsupported address family")
-// }
+func (s *unixSocket) Bind(port int, ip net.IP) error {
+	if s.af == unix.AF_INET {
+		addr, err := toSockaddrInet4(ip, port)
+		if err != nil {
+			return err
+		}
+		return unix.Bind(s.fd, addr)
+	} else if s.af == unix.AF_INET6 {
+		addr, err := toSockaddrInet6(ip, port)
+		if err != nil {
+			return err
+		}
+		return unix.Bind(s.fd, addr)
+	}
+	// panic("Invalid address family set on socket")
+	return errors.New("unsupported address family")
+}
 
 // Converts net.IP to *unix.SockaddrInet4
 func toSockaddrInet4(ip net.IP, port int) (*unix.SockaddrInet4, error) {
