@@ -1,0 +1,77 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [linux, windows, darwin]
+        arch: [amd64, arm64]
+
+    outputs:
+      tag_name: ${{ steps.extract_tag.outputs.TAG_NAME }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+
+    - name: Extract tag
+      id: extract_tag
+      run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+
+    - name: Build binary
+      env:
+        GOOS: ${{ matrix.os }}
+        GOARCH: ${{ matrix.arch }}
+      run: |
+        mkdir -p dist
+        EXT=""
+        if [ "${GOOS}" = "windows" ]; then EXT=".exe"; fi
+
+        OUT="gotraceroute-${{ env.TAG_NAME }}-${GOOS}-${GOARCH}${EXT}"
+        GOOS=$GOOS GOARCH=$GOARCH go build -ldflags "-s -w" -o dist/$OUT ./cmd/gotraceroute.go
+
+    - name: Generate checksum
+      run: |
+        cd dist
+        sha256sum * > checksums-${{ matrix.os }}-${{ matrix.arch }}.txt
+
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: gotraceroute-${{ matrix.os }}-${{ matrix.arch }}
+        path: dist/*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: dist
+
+    - name: List downloaded files
+      run: ls -R dist
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
+        body: |
+          Prebuilt binaries and checksums
+        files: dist/**/*
