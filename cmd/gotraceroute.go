@@ -34,11 +34,12 @@ func main() {
 
 	// Setup options
 	opts := traceroute.NewTracerouteOptions()
+	opts.SetSrcPort(flags.SrcPort)
+	opts.SetDestPort(flags.DestPort)
 	opts.SetMaxHops(flags.MaxHops)
 	opts.SetFirstHop(flags.FirstHop)
 	opts.SetRetries(flags.Retries)
 	opts.SetTimeoutMs(flags.TimeoutMs)
-	opts.SetPacketSize(flags.PacketSize)
 
 	switch flags.PreferAddressFamily {
 	case 4:
@@ -60,7 +61,7 @@ func main() {
 	go func() {
 		<-sigChan
 		fmt.Println("\nInterrupted. Stopping traceroute...")
-		//cancel()
+		cancel()
 	}()
 
 	// Start traceroute
@@ -86,7 +87,7 @@ func printHop(hop traceroute.TracerouteHop) {
 	}
 
 	if hop.Success {
-		fmt.Printf("%-3d %-30s (%-15s)  %6.2f ms\n",
+		fmt.Printf("%-3d %-32s (%s)  %10.2f ms\n",
 			hop.TTL, display, addr, float64(hop.ElapsedTime.Microseconds())/1000.0)
 	} else {
 		fmt.Printf("%-3d *\n", hop.TTL)
