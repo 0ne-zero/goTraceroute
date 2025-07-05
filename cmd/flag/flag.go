@@ -12,11 +12,12 @@ var ErrMissingHost = fmt.Errorf("missing host argument")
 
 // CLIFlags holds parsed command-line flags and the host.
 type CLIFlags struct {
+	SrcPort             int
+	DestPort            int
 	MaxHops             int
 	FirstHop            int
 	TimeoutMs           int
 	Retries             int
-	PacketSize          int
 	PreferAddressFamily int
 	Host                string
 }
@@ -26,10 +27,11 @@ func ParseFlags() (*CLIFlags, error) {
 	var flags CLIFlags
 
 	flag.IntVar(&flags.MaxHops, "m", traceroute.DefaultMaxHops, "Max time-to-live (max hops)")
+	flag.IntVar(&flags.SrcPort, "sp", traceroute.DefaultSrcPort, "UDP source port")
+	flag.IntVar(&flags.DestPort, "dp", traceroute.DefaultDestPort, "UDP destination port")
 	flag.IntVar(&flags.FirstHop, "f", traceroute.DefaultFirstHop, "First TTL to start probing from")
 	flag.IntVar(&flags.TimeoutMs, "t", traceroute.DefaultTimeoutMs, "Timeout per probe in ms")
 	flag.IntVar(&flags.Retries, "r", traceroute.DefaultRetries, "Number of retries per hop")
-	flag.IntVar(&flags.PacketSize, "s", traceroute.DefaultPacketSize, "Packet size in bytes")
 	flag.IntVar(&flags.PreferAddressFamily, "af", 4, "Prefer address family: '4' for IPv4, '6' for IPv6")
 
 	flag.Usage = func() {
@@ -60,9 +62,15 @@ func validate(flags *CLIFlags) error {
 		return fmt.Errorf("first hop must be between 1 and max hops")
 	}
 
+	if flags.SrcPort < 1 {
+		return fmt.Errorf("source port must be greater than 0")
+	}
+	if flags.DestPort < 1 {
+		return fmt.Errorf("destination port must be greater than 0")
+	}
 	return nil
 }
 
-func PrintUsage(){
+func PrintUsage() {
 	flag.Usage()
 }
