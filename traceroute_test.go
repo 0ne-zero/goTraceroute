@@ -30,6 +30,30 @@ func TestTracerouteIPv4(t *testing.T) {
 	}
 	fmt.Println()
 }
+func TestTraceouteChannelIPv4(t *testing.T) {
+	fmt.Println("\nTesting asynchronous traceroute IPv4:")
+	c := make(chan TracerouteHop)
+	go func() {
+		for {
+			hop, ok := <-c
+			if !ok {
+				fmt.Println()
+				return
+			}
+			printHop(hop)
+		}
+	}()
+
+	options := NewTracerouteOptions()
+	out, err := Traceroute("google.ir", options, c)
+	if err == nil {
+		if len(out.Hops) == 0 {
+			t.Errorf("TestTracerouteChannel failed. Expected at least one hop")
+		}
+	} else {
+		t.Errorf("TestTraceroute failed due to an error: %v", err)
+	}
+}
 
 func TestTracerouteIPv6(t *testing.T) {
 	fmt.Println("Testing synchronous traceroute IPv6:")
@@ -49,31 +73,6 @@ func TestTracerouteIPv6(t *testing.T) {
 	fmt.Println()
 
 }
-func TestTraceouteChannelIPv4(t *testing.T) {
-	fmt.Println("\nTesting asynchronous traceroute IPv4:")
-	c := make(chan TracerouteHop)
-	go func() {
-		for {
-			hop, ok := <-c
-			if !ok {
-				fmt.Println()
-				return
-			}
-			printHop(hop)
-		}
-	}()
-
-	options := NewTracerouteOptions()
-	out, err := Traceroute("google.com", options, c)
-	if err == nil {
-		if len(out.Hops) == 0 {
-			t.Errorf("TestTracerouteChannel failed. Expected at least one hop")
-		}
-	} else {
-		t.Errorf("TestTraceroute failed due to an error: %v", err)
-	}
-}
-
 func TestTraceouteChannelIPv6(t *testing.T) {
 	fmt.Println("\nTesting asynchronous traceroute IPv6:")
 	c := make(chan TracerouteHop)
@@ -90,6 +89,31 @@ func TestTraceouteChannelIPv6(t *testing.T) {
 
 	options := NewTracerouteOptions()
 	out, err := Traceroute("2001:4860:4860::8888", options, c)
+	if err == nil {
+		if len(out.Hops) == 0 {
+			t.Errorf("TestTracerouteChannel failed. Expected at least one hop")
+		}
+	} else {
+		t.Errorf("TestTraceroute failed due to an error: %v", err)
+	}
+}
+
+func TestTracerouteChannelHostBlockedICMPReply(t *testing.T) {
+	fmt.Println("\nTesting asynchronous traceroute on a host that blocked ICMP reply:")
+	c := make(chan TracerouteHop)
+	go func() {
+		for {
+			hop, ok := <-c
+			if !ok {
+				fmt.Println()
+				return
+			}
+			printHop(hop)
+		}
+	}()
+
+	options := NewTracerouteOptions()
+	out, err := Traceroute("irib.ir", options, c)
 	if err == nil {
 		if len(out.Hops) == 0 {
 			t.Errorf("TestTracerouteChannel failed. Expected at least one hop")
