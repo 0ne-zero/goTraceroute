@@ -25,6 +25,8 @@ Supports IPv4 & IPv6, and works on Linux, macOS, and Windows.
 Build and run:
 
 ```bash
+git clone https://github.com/0ne-zero/traceroute.git
+cd traceroute
 go build -o gotraceroute ./cmd/gotraceroute
 sudo ./gotraceroute -h
 ```
