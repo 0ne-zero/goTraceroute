@@ -1,4 +1,4 @@
-#### 🛰️ GoTraceroute
+### 🛰️ GoTraceroute
 
 A flexible, cross-platform traceroute library and CLI tool written in Go.
 Supports IPv4 & IPv6, and works on Linux, macOS, and Windows.
@@ -7,7 +7,7 @@ Supports IPv4 & IPv6, and works on Linux, macOS, and Windows.
 
 ---
 
-#### ✏️ Features
+### ✏️ Features
 
 ✅ IPv4 and IPv6 support
 
@@ -18,11 +18,11 @@ Supports IPv4 & IPv6, and works on Linux, macOS, and Windows.
 
 ---
 
-#### ⚙️ Usage
+### ⚙️ Usage
 
-###### CLI:
+##### CLI:
 
-Build and run:
+- **Build and run:**
 
 ```bash
 git clone https://github.com/0ne-zero/traceroute.git
@@ -30,6 +30,7 @@ cd traceroute
 go build -o gotraceroute ./cmd/gotraceroute
 sudo ./gotraceroute -h
 ```
+- **Download binary release:** Download the appropriate binary for your OS and architecture from the [releases](https://github.com/0ne-zero/traceroute/releases) page.
 > Note: On Linux and macOS, raw sockets require sudo.
 On Windows, run from an elevated terminal.
 
@@ -38,9 +39,9 @@ On Windows, run from an elevated terminal.
 
 ---
 
-###### Library:
+#### Library:
 
-Import and call:
+- **Import and call:**
 
 ```go
 import (
