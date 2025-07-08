@@ -5,38 +5,46 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/0ne-zero/traceroute"
+	"github.com/0ne-zero/traceroute/pkg/core/options"
 )
 
-var ErrMissingHost = fmt.Errorf("missing host argument")
+// ErrMissingHost is returned when no host is provided as argument
+var ErrMissingHost = fmt.Errorf("host argument is required (e.g. traceroute [options] example.com)")
 
-// CLIFlags holds parsed command-line flags and the host.
+// CLIFlags holds parsed command-line flags and the host
 type CLIFlags struct {
-	SrcPort             int
-	DestPort            int
-	MaxHops             int
-	FirstHop            int
-	TimeoutMs           int
-	Retries             int
-	PreferAddressFamily int
-	Host                string
+	DestPort                int
+	MaxHops                 int
+	FirstHop                int
+	TimeoutMs               int
+	DelayMs                 int
+	Retries                 int
+	PreferAddressFamily     int
+	Host                    string
+	Protocol                string
+	MaxConsecutiveNoReplies int
 }
 
-// parseFlags parses CLI flags and returns CLIFlags + possible error.
+// ParseFlags parses CLI flags and returns CLIFlags and an error if any
 func ParseFlags() (*CLIFlags, error) {
 	var flags CLIFlags
 
-	flag.IntVar(&flags.MaxHops, "m", traceroute.DefaultMaxHops, "Max time-to-live (max hops)")
-	flag.IntVar(&flags.SrcPort, "sp", traceroute.DefaultSrcPort, "UDP source port")
-	flag.IntVar(&flags.DestPort, "dp", traceroute.DefaultDestPort, "UDP destination port")
-	flag.IntVar(&flags.FirstHop, "f", traceroute.DefaultFirstHop, "First TTL to start probing from")
-	flag.IntVar(&flags.TimeoutMs, "t", traceroute.DefaultTimeoutMs, "Timeout per probe in ms")
-	flag.IntVar(&flags.Retries, "r", traceroute.DefaultRetries, "Number of retries per hop")
-	flag.IntVar(&flags.PreferAddressFamily, "af", 4, "Prefer address family: '4' for IPv4, '6' for IPv6")
+	flag.IntVar(&flags.FirstHop, "first-ttl", options.DefaultFirstHop, "Initial TTL to start probing from (default: 1)")
+	flag.IntVar(&flags.MaxHops, "max-ttl", options.DefaultMaxHops, "Maximum TTL (max hops) to probe (default: 30)")
+
+	flag.IntVar(&flags.DestPort, "dest-port", 0, "Destination port to probe")
+
+	flag.IntVar(&flags.TimeoutMs, "timeout", options.DefaultTimeoutMs, "Timeout per probe in milliseconds")
+	flag.IntVar(&flags.DelayMs, "delay", options.DefaultDelayMs, "Delay between sending probes in milliseconds")
+	flag.IntVar(&flags.Retries, "retries", options.DefaultRetries, "Number of retries per hop except the first probe")
+	flag.IntVar(&flags.PreferAddressFamily, "ip-version", 4, "Preferred address family: 4 for IPv4 or 6 for IPv6")
+
+	flag.StringVar(&flags.Protocol, "protocol", "udp", "Protocol to use: udp or tcp")
+
+	flag.IntVar(&flags.MaxConsecutiveNoReplies, "max-consecutive", 0, "Max consecutive probes without reply to stop early (0 disables)")
 
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(),
-			"Usage: %s [options] host\n\nOptions:\n", os.Args[0])
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [options] host\n\nOptions:\n", os.Args[0])
 		flag.PrintDefaults()
 	}
 
@@ -45,32 +53,41 @@ func ParseFlags() (*CLIFlags, error) {
 	if err := validate(&flags); err != nil {
 		return nil, err
 	}
+
 	return &flags, nil
 }
 
+// validate checks CLI flags and sets defaults if needed
 func validate(flags *CLIFlags) error {
 	if flag.NArg() < 1 {
 		return ErrMissingHost
 	}
 	flags.Host = flag.Arg(0)
 
-	// validate values
-	if flags.MaxHops <= 0 || flags.MaxHops > 255 {
-		return fmt.Errorf("max hops must be between 1 and 255")
-	}
-	if flags.FirstHop <= 0 || flags.FirstHop > flags.MaxHops {
-		return fmt.Errorf("first hop must be between 1 and max hops")
+	switch flags.Protocol {
+	case "udp":
+		flags.DestPort = options.DefaultUDPDestPort
+	case "tcp":
+		flags.DestPort = options.DefaultTCPDestPort
+	default:
+		return fmt.Errorf("invalid protocol: must be either \"udp\" or \"tcp\"")
 	}
 
-	if flags.SrcPort < 1 {
-		return fmt.Errorf("source port must be greater than 0")
+	if flags.MaxHops <= 0 || flags.MaxHops > 255 {
+		return fmt.Errorf("max-ttl must be between 1 and 255")
 	}
+	if flags.FirstHop <= 0 || flags.FirstHop > flags.MaxHops {
+		return fmt.Errorf("first-ttl must be between 1 and max-ttl")
+	}
+
 	if flags.DestPort < 1 {
 		return fmt.Errorf("destination port must be greater than 0")
 	}
+
 	return nil
 }
 
+// PrintUsage prints CLI usage info
 func PrintUsage() {
 	flag.Usage()
 }

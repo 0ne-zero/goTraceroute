@@ -9,9 +9,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/0ne-zero/traceroute"
 	"github.com/0ne-zero/traceroute/cmd/flag"
-	trace_socket "github.com/0ne-zero/traceroute/net/socket"
+	"github.com/0ne-zero/traceroute/pkg/core/hop"
+	"github.com/0ne-zero/traceroute/pkg/core/options"
+	"github.com/0ne-zero/traceroute/pkg/core/traceroute"
+	trace_socket "github.com/0ne-zero/traceroute/pkg/net/socket"
 )
 
 func main() {
@@ -33,13 +35,25 @@ func main() {
 	}
 
 	// Setup options
-	opts := traceroute.NewTracerouteOptions()
-	opts.SetSrcPort(flags.SrcPort)
-	opts.SetDestPort(flags.DestPort)
-	opts.SetMaxHops(flags.MaxHops)
+	opts := options.NewTracerouteOptions()
+	switch flags.Protocol {
+	case "udp":
+		opts.SetProbeProtocol(options.PROTOCOL_UDP)
+	case "tcp":
+		opts.SetProbeProtocol(options.PROTOCOL_TCP)
+	default:
+		fmt.Fprintf(os.Stderr, "invalid protocol: must be either \"udp\" or \"tcp\"")
+		os.Exit(1)
+	}
+	if flags.MaxConsecutiveNoReplies > 0 {
+		opts.SetMaxConsecutiveNoReplies(flags.MaxConsecutiveNoReplies)
+	}
+	opts.SetUDPDestPort(flags.DestPort)
 	opts.SetFirstHop(flags.FirstHop)
+	opts.SetMaxHops(flags.MaxHops)
 	opts.SetRetries(flags.Retries)
 	opts.SetTimeoutMs(flags.TimeoutMs)
+	opts.SetDelayMs(flags.DelayMs)
 
 	switch flags.PreferAddressFamily {
 	case 4:
@@ -50,12 +64,11 @@ func main() {
 		opts.SetPreferAddressFamily(trace_socket.AF_INET)
 	}
 
-	fmt.Printf("traceroute to %s (%s), %d hops max, %d byte packets\n",
-		flags.Host, ipAddr.String(), opts.MaxHops(), opts.PacketSize())
+	fmt.Printf("traceroute to %s (%s), %d start ttl, %d hops max\n", flags.Host, ipAddr.String(), opts.FirstHop(), opts.MaxHops())
 
-	// Setup Ctrl+C handling
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	// Setup Ctrl+C handling
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 	go func() {
@@ -65,21 +78,20 @@ func main() {
 	}()
 
 	// Start traceroute
-	hopChan := make(chan traceroute.TracerouteHop)
+	hopChan := make(chan hop.TracerouteHop)
 	go func() {
-		for hop := range hopChan {
-			printHop(hop)
-		}
-	}()
-
-	_, err = traceroute.TracerouteContext(ctx, flags.Host, opts, hopChan)
-	if err != nil {
+		err = traceroute.TracerouteContext(ctx, flags.Host, opts, hopChan)
 		fmt.Fprintf(os.Stderr, "Traceroute error: %v\n", err)
 		os.Exit(1)
+
+	}()
+
+	for hop := range hopChan {
+		printHop(hop)
 	}
 }
 
-func printHop(hop traceroute.TracerouteHop) {
+func printHop(hop hop.TracerouteHop) {
 	addr := net.IP(hop.Address).String()
 	display := addr
 	if hop.Host != "" {
