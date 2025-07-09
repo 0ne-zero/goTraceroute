@@ -74,8 +74,6 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 1
-          # *** THIS IS THE FIX ***
-          # Only set the CC for Linux ARM64 cross-compilation. macOS handles this natively.
           CC: ${{ runner.os == 'Linux' && matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || '' }}
         run: |
           mkdir -p dist
@@ -108,8 +106,10 @@ jobs:
         shell: pwsh
         run: |
           cd dist
-          Get-FileHash * -Algorithm SHA256 | Format-Table -HideTableHeaders | Out-File -FilePath checksums.txt
-          (Get-Content checksums.txt) | ForEach-Object { $_.Trim() -replace '\s+', '  ' } | Set-Content checksums.txt
+          # *** THIS IS THE FIX ***
+          # Process the hash objects directly to create the correct format in one step,
+          # avoiding the file lock issue.
+          Get-FileHash * -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path -Leaf $_.Path)" } | Set-Content -Path checksums.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
