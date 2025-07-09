@@ -23,7 +23,7 @@ func TestTracerouteIPv4(t *testing.T) {
 	opts := options.NewTracerouteOptions()
 	resChan := make(chan hop.TracerouteHop, opts.MaxHops())
 
-	err := traceroute.Traceroute("aparat.com", opts, resChan)
+	err := traceroute.Traceroute("google.com", opts, resChan)
 	if err != nil {
 		t.Fatalf("TestTraceroute failed due to an error: %v", err)
 	}
@@ -41,7 +41,7 @@ func TestTraceouteChannelIPv4(t *testing.T) {
 
 	go func() {
 		opts := options.NewTracerouteOptions()
-		err := traceroute.Traceroute("aparat.com", opts, resChan)
+		err := traceroute.Traceroute("google.com", opts, resChan)
 		if err != nil {
 			errChan <- fmt.Errorf("TestTraceroute failed due to an error: %v", err)
 		}
@@ -67,7 +67,7 @@ func TestTCPTracerouteIPv4(t *testing.T) {
 	opts.SetProbeProtocol(options.PROTOCOL_TCP)
 	resChan := make(chan hop.TracerouteHop, opts.MaxHops())
 
-	err := traceroute.Traceroute("aparat.com", opts, resChan)
+	err := traceroute.Traceroute("google.com", opts, resChan)
 	if err != nil {
 		t.Fatalf("TestTraceroute failed due to an error: %v", err)
 	}
@@ -85,7 +85,7 @@ func TestTCPTraceouteChannelIPv4(t *testing.T) {
 	go func() {
 		opts := options.NewTracerouteOptions()
 		opts.SetProbeProtocol(options.PROTOCOL_TCP)
-		err := traceroute.Traceroute("aparat.com", opts, resChan)
+		err := traceroute.Traceroute("google.com", opts, resChan)
 		if err != nil {
 			errChan <- fmt.Errorf("TestTraceroute failed due to an error: %v", err)
 		}
