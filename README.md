@@ -24,22 +24,29 @@ It supports IPv4/IPv6 and TCP/UDP, and works on Linux, macOS, and Windows.
 
 ## ⚙️ Usage
 
-### Commnad-Line Interface:
-#### Dependency
+### Dependency
 - This tool depends on libpcap (on Linux/macOS) or Npcap SDK (on Windows) for capturing incoming TCP packets:
 	- On Linux:
-		```bash
-		sudo apt install libpcap libpcap-dev
-		```
+	```bash
+	sudo apt install libpcap-dev     // Ubuntu, Debian, Kali
+ 	sudo dnf install libpcap-devel   // Fedora
+ 	sudo yum install libpcap-devel   // CentOS, RHEL
+ 	sudo pacman -S libpcap           // Arch Linux, Manjaro
+	```
 	- On macOS:
-		```bash
-		brew install libpcap
-		```
+	```bash
+	brew install libpcap
+	```
 	- On Windows: Download from here [Npcap SDK](https://npcap.com/#download).
 
-#### Build and run
-- **Download binary release:** Download the appropriate binary for your OS and architecture from the [releases](https://github.com/0ne-zero/traceroute/releases) page.
 
+
+### Commnad-Line Interface:
+#### Build and run
+- Install it with `go install`:
+```bash
+go install github.com/0ne-zero/traceroute/cmd/gotraceroute@latest
+```
 - Build from source code:
 ```bash
 git clone https://github.com/0ne-zero/traceroute.git
@@ -50,12 +57,15 @@ sudo ./gotraceroute -h
 > On Linux/macOS, raw sockets require sudo.
 > On Windows, run from an elevated terminal.
 
-
+- Download binary release: Download the appropriate binary for your OS and architecture from the [releases](https://github.com/0ne-zero/traceroute/releases) page.
 
 #### Go Library:
+- Get the module:
+```bash
+go get github.com/0ne-zero/traceroute
+```
 
-- **Import and call:**
-
+- Code example:
 ```go
 package main
 
