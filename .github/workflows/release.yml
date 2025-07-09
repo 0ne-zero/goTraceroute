@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*' # Trigger on version tags
 
 permissions:
   contents: write
@@ -13,21 +13,24 @@ jobs:
     strategy:
       matrix:
         include:
-          - goos: linux
+          # AMD64 (x86_64) runners
+          - os: ubuntu-latest
+            goos: linux
             goarch: amd64
             runner: ubuntu-latest
-          - goos: darwin
+          - os: macos-latest
+            goos: darwin
             goarch: amd64
             runner: macos-latest
-          - goos: windows
+          - os: windows-latest
+            goos: windows
             goarch: amd64
             runner: windows-latest
-          - goos: darwin
+          # ARM64 native build for macOS
+          - os: macos-latest
+            goos: darwin
             goarch: arm64
-            runner: macos-14
-          - goos: linux
-            goarch: arm64
-            runner: ubuntu-latest
+            runner: macos-14 # Apple Silicon (M1/M2) runner
 
     runs-on: ${{ matrix.runner }}
 
@@ -40,28 +43,10 @@ jobs:
         with:
           go-version: '1.22'
 
-      # --- DEPENDENCIES (FINAL CORRECTED VERSION) ---
-      
-      - name: Install native dependencies on Linux (amd64)
-        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+      # Install native libpcap dependencies
+      - name: Install dependencies on Linux
+        if: matrix.goos == 'linux'
         run: sudo apt-get update && sudo apt-get install -y libpcap-dev
-
-      # *** THE DEFINITIVE FIX FOR LINUX ARM64 CROSS-COMPILATION ***
-      - name: Set up cross-compile for Linux (arm64)
-        if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
-        run: |
-          # 1. Add the ARM64 architecture
-          sudo dpkg --add-architecture arm64
-          # 2. Add the `ports.ubuntu.com` repository, which holds the ARM64 packages.
-          #    We create a new list file instead of modifying the main one.
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse" | sudo tee /etc/apt/sources.list.d/arm64.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/arm64.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-backports main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/arm64.list
-          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/arm64.list
-          # 3. Now, update apt. It will read from both the original sources and our new one.
-          sudo apt-get update
-          # 4. Finally, install the packages. Apt now knows where to find them.
-          sudo apt-get install -y --no-install-recommends libpcap-dev:arm64 gcc-aarch64-linux-gnu
 
       - name: Install dependencies on macOS
         if: matrix.goos == 'darwin'
@@ -78,20 +63,19 @@ jobs:
         id: extract_tag
         run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
 
-      # --- BUILD STEPS ---
-      
+      # Build for Unix (Linux & macOS)
       - name: Build binary (Unix)
-        if: matrix.goos == 'linux' || matrix.goos == 'darwin'
+        if: matrix.goos != 'windows'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 1
-          CC: ${{ matrix.goos == 'linux' && matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || '' }}
         run: |
           mkdir -p dist
           OUT="gotraceroute-${TAG_NAME}-${GOOS}-${GOARCH}"
           go build -ldflags="-s -w" -o "dist/$OUT" ./cmd/gotraceroute.go
 
+      # Build for Windows
       - name: Build binary (Windows)
         if: matrix.goos == 'windows'
         shell: pwsh
@@ -105,19 +89,21 @@ jobs:
           New-Item -ItemType Directory -Path "dist" -Force
           $out = "gotraceroute-${env:TAG_NAME}-${env:GOOS}-${env:GOARCH}.exe"
           go build -ldflags="-s -w" -o "dist\$out" ./cmd/gotraceroute.go
-      
-      # --- CHECKSUM & UPLOAD ---
-      - name: Generate checksum
+
+      # Generate checksum
+      - name: Generate checksum (Unix)
+        if: matrix.goos != 'windows'
         run: |
           cd dist
-          if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum * > checksums.txt
-          elif command -v shasum >/dev/null 2>&1; then
-            shasum -a 256 * > checksums.txt
-          else
-            powershell.exe -Command "Get-FileHash * -Algorithm SHA256 | ForEach-Object { '$($_.Hash.ToLower())  $(Split-Path -Leaf $_.Path)' } | Set-Content -Path checksums.txt"
-          fi
-          
+          shasum -a 256 * > checksums.txt
+
+      - name: Generate checksum (Windows)
+        if: matrix.goos == 'windows'
+        shell: pwsh
+        run: |
+          cd dist
+          Get-FileHash * -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path -Leaf $_.Path)" } | Set-Content -Path checksums.txt
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
