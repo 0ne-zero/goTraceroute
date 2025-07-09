@@ -26,18 +26,21 @@ It supports IPv4/IPv6 and TCP/UDP, and works on Linux, macOS, and Windows.
 
 ### Dependency
 - This tool depends on libpcap (on Linux/macOS) or Npcap SDK (on Windows) for capturing incoming TCP packets:
-	- On Linux:
+
+  	- On Linux:
 	```bash
 	sudo apt install libpcap-dev     // Ubuntu, Debian, Kali
  	sudo dnf install libpcap-devel   // Fedora
  	sudo yum install libpcap-devel   // CentOS, RHEL
  	sudo pacman -S libpcap           // Arch Linux, Manjaro
 	```
-	- On macOS:
+
+  	- On macOS:
 	```bash
 	brew install libpcap
 	```
-	- On Windows: Download from here [Npcap SDK](https://npcap.com/#download).
+
+  	- On Windows: Download from here [Npcap SDK](https://npcap.com/#download).
 
 
 
@@ -59,7 +62,7 @@ sudo ./gotraceroute -h
 
 - Download binary release: Download the appropriate binary for your OS and architecture from the [releases](https://github.com/0ne-zero/traceroute/releases) page.
 
-#### Go Library:
+### As a library (module):
 - Get the module:
 ```bash
 go get github.com/0ne-zero/traceroute
@@ -93,6 +96,7 @@ func main() {
 
 
 	// --- Synchronous traceroute ---
+
 	// We pass a buffered channel sized to max hops, so traceroute can send results without blocking
 	resChan := make(chan hop.TracerouteHop, opts.MaxHops())
 
@@ -101,13 +105,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Read final hops from the channel
+	// Read results from the channel
 	for h := range resChan {
 		fmt.Printf("TTL %d\t%s\t%v\n", h.TTL, h.Address, h.ElapsedTime)
 	}
 
 
 	// --- Asynchronous traceroute ---
+
 	// Useful if you want to show hops live or do other work concurrently
 	resChan = make(chan hop.TracerouteHop)
 	errChan := make(chan error)
@@ -124,6 +129,7 @@ func main() {
 		select {
 		case hop, ok := <-resChan:
 			if !ok {
+				fmt.Println("Traceroute completed successfully")
 				return // Channel closed → traceroute finished
 			}
 			fmt.Printf("TTL %d\t%s\t%v\n", hop.TTL, hop.Address, hop.ElapsedTime)
