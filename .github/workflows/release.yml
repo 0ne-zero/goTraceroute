@@ -48,7 +48,6 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libpcap-dev
 
-      # NEW STEP: Install the C cross-compiler for ARM64 builds on Linux
       - name: Install ARM64 cross-compiler on Linux
         if: runner.os == 'Linux' && matrix.goarch == 'arm64'
         run: sudo apt-get install -y gcc-aarch64-linux-gnu
@@ -75,9 +74,9 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 1
-          # NEW ENV VAR: Tell CGO which C cross-compiler to use for arm64 builds.
-          # For amd64, this will be empty, and Go will correctly use the default 'gcc'.
-          CC: ${{ matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || '' }}
+          # *** THIS IS THE FIX ***
+          # Only set the CC for Linux ARM64 cross-compilation. macOS handles this natively.
+          CC: ${{ runner.os == 'Linux' && matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || '' }}
         run: |
           mkdir -p dist
           OUT="gotraceroute-${TAG_NAME}-${GOOS}-${GOARCH}"
