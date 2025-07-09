@@ -167,7 +167,7 @@ func TracerouteContext(ctx context.Context, dest string, opts *options.Options, 
 		// Increase consecutive counter if the feature is enabled and check it every time
 		if opts.MaxConsecutiveNoReplies() > 0 {
 			consecutiveCounter++
-			if consecutiveCounter > opts.MaxConsecutiveNoReplies() {
+			if consecutiveCounter == opts.MaxConsecutiveNoReplies() {
 				closeNotifyChans(chans)
 				iterCtxCancel()
 				return ErrMaxConsecutiveNoRepliesExceeded
