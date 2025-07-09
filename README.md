@@ -52,9 +52,7 @@ sudo ./gotraceroute -h
 
 
 
----
-
-#### Library:
+#### Go Library:
 
 - **Import and call:**
 
