@@ -79,15 +79,31 @@ func main() {
 
 	// Start traceroute
 	hopChan := make(chan hop.TracerouteHop)
+	errChan := make(chan error)
+
 	go func() {
 		err = traceroute.TracerouteContext(ctx, flags.Host, opts, hopChan)
-		fmt.Fprintf(os.Stderr, "Traceroute error: %v\n", err)
-		os.Exit(1)
+		if err != nil {
+			errChan <- err
+		}
 
 	}()
 
-	for hop := range hopChan {
-		printHop(hop)
+	for {
+		select {
+		case hop, ok := <-hopChan:
+			if !ok {
+				return
+			}
+			printHop(hop)
+		case err := <-errChan:
+			if errors.Is(err, traceroute.ErrMaxConsecutiveNoRepliesExceeded) {
+				fmt.Fprintf(os.Stderr, "Traceroute stopped early: too many consecutive unanswered hops\n")
+			} else {
+				fmt.Fprintf(os.Stderr, "Traceroute error: %v\n", err)
+			}
+			os.Exit(1)
+		}
 	}
 }
 
