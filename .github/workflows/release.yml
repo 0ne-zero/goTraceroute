@@ -43,14 +43,24 @@ jobs:
         with:
           go-version: '1.22'
 
-      # --- OS-SPECIFIC DEPENDENCIES ---
-      - name: Install dependencies on Linux
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libpcap-dev
+      # --- OS-SPECIFIC DEPENDENCIES (FINAL VERSION) ---
 
-      - name: Install ARM64 cross-compiler on Linux
+      - name: Install native dependencies on Linux (amd64)
+        if: runner.os == 'Linux' && matrix.goarch == 'amd64'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpcap-dev
+
+      # *** THIS IS THE CANONICAL FIX FOR ARM64 CROSS-COMPILATION ***
+      - name: Set up multi-architecture for ARM64 cross-compile
         if: runner.os == 'Linux' && matrix.goarch == 'arm64'
-        run: sudo apt-get install -y gcc-aarch64-linux-gnu
+        run: |
+          # 1. Tell apt that the repos support multiple architectures
+          sudo sed -i -e 's/^deb /deb [arch=amd64,arm64] /' /etc/apt/sources.list
+          # 2. Add the arm64 architecture
+          sudo dpkg --add-architecture arm64
+          # 3. Update apt to pull in the new arm64 package lists
+          sudo apt-get update
+          # 4. Install the arm64 C library and the cross-compiler in one go
+          sudo apt-get install -y --no-install-recommends libpcap-dev:arm64 gcc-aarch64-linux-gnu
 
       - name: Install dependencies on macOS
         if: runner.os == 'macOS'
@@ -106,9 +116,6 @@ jobs:
         shell: pwsh
         run: |
           cd dist
-          # *** THIS IS THE FIX ***
-          # Process the hash objects directly to create the correct format in one step,
-          # avoiding the file lock issue.
           Get-FileHash * -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path -Leaf $_.Path)" } | Set-Content -Path checksums.txt
 
       - name: Upload artifact
