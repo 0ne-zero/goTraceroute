@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*' # Trigger on version tags
+      - 'v*'
 
 permissions:
   contents: write
@@ -13,26 +13,23 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            goos: linux
+          - goos: linux
             goarch: amd64
-          - os: ubuntu-latest
-            goos: linux
-            goarch: arm64
-          - os: macos-latest
-            goos: darwin
+            runner: ubuntu-latest
+          - goos: darwin
             goarch: amd64
-          - os: macos-latest
-            goos: darwin
-            goarch: arm64
-          - os: windows-latest
-            goos: windows
+            runner: macos-latest
+          - goos: windows
             goarch: amd64
-          - os: windows-latest
-            goos: windows
+            runner: windows-latest
+          - goos: darwin
             goarch: arm64
+            runner: macos-14
+          - goos: linux
+            goarch: arm64
+            runner: ubuntu-latest
 
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
 
     steps:
       - name: Checkout code
@@ -43,31 +40,35 @@ jobs:
         with:
           go-version: '1.22'
 
-      # --- OS-SPECIFIC DEPENDENCIES (FINAL VERSION) ---
-
+      # --- DEPENDENCIES (FINAL CORRECTED VERSION) ---
+      
       - name: Install native dependencies on Linux (amd64)
-        if: runner.os == 'Linux' && matrix.goarch == 'amd64'
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libpcap-dev
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
+        run: sudo apt-get update && sudo apt-get install -y libpcap-dev
 
-      # *** THIS IS THE CANONICAL FIX FOR ARM64 CROSS-COMPILATION ***
-      - name: Set up multi-architecture for ARM64 cross-compile
-        if: runner.os == 'Linux' && matrix.goarch == 'arm64'
+      # *** THE DEFINITIVE FIX FOR LINUX ARM64 CROSS-COMPILATION ***
+      - name: Set up cross-compile for Linux (arm64)
+        if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
         run: |
-          # 1. Tell apt that the repos support multiple architectures
-          sudo sed -i -e 's/^deb /deb [arch=amd64,arm64] /' /etc/apt/sources.list
-          # 2. Add the arm64 architecture
+          # 1. Add the ARM64 architecture
           sudo dpkg --add-architecture arm64
-          # 3. Update apt to pull in the new arm64 package lists
+          # 2. Add the `ports.ubuntu.com` repository, which holds the ARM64 packages.
+          #    We create a new list file instead of modifying the main one.
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble main restricted universe multiverse" | sudo tee /etc/apt/sources.list.d/arm64.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-updates main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/arm64.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-backports main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/arm64.list
+          echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports noble-security main restricted universe multiverse" | sudo tee -a /etc/apt/sources.list.d/arm64.list
+          # 3. Now, update apt. It will read from both the original sources and our new one.
           sudo apt-get update
-          # 4. Install the arm64 C library and the cross-compiler in one go
+          # 4. Finally, install the packages. Apt now knows where to find them.
           sudo apt-get install -y --no-install-recommends libpcap-dev:arm64 gcc-aarch64-linux-gnu
 
       - name: Install dependencies on macOS
-        if: runner.os == 'macOS'
+        if: matrix.goos == 'darwin'
         run: brew install libpcap
 
       - name: Download and extract Npcap SDK on Windows
-        if: runner.os == 'Windows'
+        if: matrix.goos == 'windows'
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://nmap.org/npcap/dist/npcap-sdk-1.13.zip" -OutFile "npcap-sdk.zip"
@@ -78,46 +79,45 @@ jobs:
         run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
 
       # --- BUILD STEPS ---
+      
       - name: Build binary (Unix)
-        if: runner.os != 'Windows'
+        if: matrix.goos == 'linux' || matrix.goos == 'darwin'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 1
-          CC: ${{ runner.os == 'Linux' && matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || '' }}
+          CC: ${{ matrix.goos == 'linux' && matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || '' }}
         run: |
           mkdir -p dist
           OUT="gotraceroute-${TAG_NAME}-${GOOS}-${GOARCH}"
           go build -ldflags="-s -w" -o "dist/$OUT" ./cmd/gotraceroute.go
 
       - name: Build binary (Windows)
-        if: runner.os == 'Windows'
+        if: matrix.goos == 'windows'
         shell: pwsh
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 1
           CGO_CFLAGS: "-I${{ github.workspace }}\\npcap-sdk\\Include"
-          CGO_LDFLAGS: "-L${{ github.workspace }}\\npcap-sdk\\Lib\\${{ matrix.goarch }} -lwpcap"
+          CGO_LDFLAGS: "-L${{ github.workspace }}\\npcap-sdk\\Lib\\x64 -lwpcap"
         run: |
           New-Item -ItemType Directory -Path "dist" -Force
           $out = "gotraceroute-${env:TAG_NAME}-${env:GOOS}-${env:GOARCH}.exe"
           go build -ldflags="-s -w" -o "dist\$out" ./cmd/gotraceroute.go
       
       # --- CHECKSUM & UPLOAD ---
-      - name: Generate checksum (Unix)
-        if: runner.os != 'Windows'
+      - name: Generate checksum
         run: |
           cd dist
-          shasum -a 256 * > checksums.txt
-
-      - name: Generate checksum (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          cd dist
-          Get-FileHash * -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path -Leaf $_.Path)" } | Set-Content -Path checksums.txt
-
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum * > checksums.txt
+          elif command -v shasum >/dev/null 2>&1; then
+            shasum -a 256 * > checksums.txt
+          else
+            powershell.exe -Command "Get-FileHash * -Algorithm SHA256 | ForEach-Object { '$($_.Hash.ToLower())  $(Split-Path -Leaf $_.Path)' } | Set-Content -Path checksums.txt"
+          fi
+          
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
