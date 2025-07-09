@@ -41,7 +41,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.24'
 
       # Install native libpcap dependencies
       - name: Install dependencies on Linux
@@ -58,11 +58,7 @@ jobs:
         run: |
           Invoke-WebRequest -Uri "https://nmap.org/npcap/dist/npcap-sdk-1.13.zip" -OutFile "npcap-sdk.zip"
           Expand-Archive -Path "npcap-sdk.zip" -DestinationPath "npcap-sdk"
-
-      - name: Extract tag name
-        id: extract_tag
-        run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
-
+          
       # Build for Unix (Linux & macOS)
       - name: Build binary (Unix)
         if: matrix.goos != 'windows'
@@ -72,9 +68,9 @@ jobs:
           CGO_ENABLED: 1
         run: |
           mkdir -p dist
-          OUT="gotraceroute-${TAG_NAME}-${GOOS}-${GOARCH}"
+          OUT="gotraceroute-${GOOS}-${GOARCH}"
           go build -ldflags="-s -w" -o "dist/$OUT" ./cmd/gotraceroute.go
-
+          
       # Build for Windows
       - name: Build binary (Windows)
         if: matrix.goos == 'windows'
@@ -87,23 +83,26 @@ jobs:
           CGO_LDFLAGS: "-L${{ github.workspace }}\\npcap-sdk\\Lib\\x64 -lwpcap"
         run: |
           New-Item -ItemType Directory -Path "dist" -Force
-          $out = "gotraceroute-${env:TAG_NAME}-${env:GOOS}-${env:GOARCH}.exe"
+          $out = "gotraceroute-${env:GOOS}-${env:GOARCH}.exe"
           go build -ldflags="-s -w" -o "dist\$out" ./cmd/gotraceroute.go
-
-      # Generate checksum
-      - name: Generate checksum (Unix)
+          
+      - name: Generate checksums (Unix)
         if: matrix.goos != 'windows'
         run: |
           cd dist
-          shasum -a 256 * > checksums.txt
-
-      - name: Generate checksum (Windows)
+          for file in *; do
+            shasum -a 256 "$file" > "${file}.sha256"
+          done   
+      
+      - name: Generate checksums (Windows)
         if: matrix.goos == 'windows'
         shell: pwsh
         run: |
           cd dist
-          Get-FileHash * -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path -Leaf $_.Path)" } | Set-Content -Path checksums.txt
-
+          Get-ChildItem -File | ForEach-Object {
+            $hash = Get-FileHash $_.Name -Algorithm SHA256
+            "$($hash.Hash.ToLower())  $($_.Name)" | Out-File -Encoding ascii "$($_.Name).sha256"
+          }
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -128,5 +127,5 @@ jobs:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           body: |
-            Prebuilt binaries and checksums for Linux, macOS, and Windows.
+            Prebuilt binaries and per-OS checksums for Linux, macOS, and Windows.
           files: dist/**/*
