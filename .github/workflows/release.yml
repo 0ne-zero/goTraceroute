@@ -5,7 +5,6 @@ on:
     tags:
       - 'v*' # Trigger on version tags
 
-# This permission is required to create a release and upload assets.
 permissions:
   contents: write
 
@@ -42,12 +41,17 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22' # Using a slightly more common LTS version, adjust if you need 1.24 features
+          go-version: '1.22'
 
       # --- OS-SPECIFIC DEPENDENCIES ---
       - name: Install dependencies on Linux
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libpcap-dev
+
+      # NEW STEP: Install the C cross-compiler for ARM64 builds on Linux
+      - name: Install ARM64 cross-compiler on Linux
+        if: runner.os == 'Linux' && matrix.goarch == 'arm64'
+        run: sudo apt-get install -y gcc-aarch64-linux-gnu
 
       - name: Install dependencies on macOS
         if: runner.os == 'macOS'
@@ -62,18 +66,18 @@ jobs:
 
       - name: Extract tag name
         id: extract_tag
-        # This works on all shells (bash, sh, pwsh) provided by GitHub Actions runners
         run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
 
-      # --- BUILD STEPS (FIXED) ---
-      # We use separate steps for Unix (Linux/macOS) and Windows to avoid shell syntax conflicts.
-
+      # --- BUILD STEPS ---
       - name: Build binary (Unix)
         if: runner.os != 'Windows'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 1
+          # NEW ENV VAR: Tell CGO which C cross-compiler to use for arm64 builds.
+          # For amd64, this will be empty, and Go will correctly use the default 'gcc'.
+          CC: ${{ matrix.goarch == 'arm64' && 'aarch64-linux-gnu-gcc' || '' }}
         run: |
           mkdir -p dist
           OUT="gotraceroute-${TAG_NAME}-${GOOS}-${GOARCH}"
@@ -86,7 +90,6 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 1
-          # Set absolute Windows SDK paths for CGO
           CGO_CFLAGS: "-I${{ github.workspace }}\\npcap-sdk\\Include"
           CGO_LDFLAGS: "-L${{ github.workspace }}\\npcap-sdk\\Lib\\${{ matrix.goarch }} -lwpcap"
         run: |
@@ -94,14 +97,11 @@ jobs:
           $out = "gotraceroute-${env:TAG_NAME}-${env:GOOS}-${env:GOARCH}.exe"
           go build -ldflags="-s -w" -o "dist\$out" ./cmd/gotraceroute.go
       
-      # --- CHECKSUM STEPS (IMPROVED) ---
-      # Using native tools for each OS is more reliable.
-
+      # --- CHECKSUM & UPLOAD ---
       - name: Generate checksum (Unix)
         if: runner.os != 'Windows'
         run: |
           cd dist
-          # Use shasum which is common on macOS and often available on Linux
           shasum -a 256 * > checksums.txt
 
       - name: Generate checksum (Windows)
@@ -110,17 +110,12 @@ jobs:
         run: |
           cd dist
           Get-FileHash * -Algorithm SHA256 | Format-Table -HideTableHeaders | Out-File -FilePath checksums.txt
-          # The above command creates a file format like:
-          # HASH                                PATH
-          # 1234...  C:\actions-runner\_work\my-repo\my-repo\dist\gotraceroute-v1.0.0-windows-amd64.exe
-          # We can clean it up to just be "hash  filename" for consistency
           (Get-Content checksums.txt) | ForEach-Object { $_.Trim() -replace '\s+', '  ' } | Set-Content checksums.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.goos }}-${{ matrix.goarch }}
-          # The path now includes the checksum file
           path: dist/*
 
   release:
@@ -130,8 +125,6 @@ jobs:
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
-          # This will download all artifacts into a directory named 'dist'
-          # with subdirectories for each artifact, e.g., dist/build-linux-amd64/
           path: dist
 
       - name: List downloaded files (for debugging)
@@ -144,5 +137,4 @@ jobs:
           name: Release ${{ github.ref_name }}
           body: |
             Prebuilt binaries and checksums for Linux, macOS, and Windows.
-          # The glob pattern correctly finds all files in all subdirectories
           files: dist/**/*
