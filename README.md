@@ -9,7 +9,7 @@ It supports IPv4/IPv6 and TCP/UDP, and works on Linux, macOS, and Windows.
 
 ## ✏️ Features
 
-✅ IPv4 and IPv6 support.
+✅ Supports IPv4 and IPv6.
 
 ✅ Supports TCP and UDP protcols.
 
