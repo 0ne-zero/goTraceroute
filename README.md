@@ -1,13 +1,13 @@
-### 🛰️ GoTraceroute
+## 🛰️ GoTraceroute
 
 A flexible, cross-platform traceroute library and CLI tool written in Go.
-Supports IPv4 & IPv6, and works on Linux, macOS, and Windows.
+It supports IPv4/IPv6 and TCP/UDP, and works on Linux, macOS, and Windows.
 > Tested on Linux — please open an issue if you hit a bug on other platforms.
 
 
 ---
 
-### ✏️ Features
+## ✏️ Features
 
 ✅ IPv4 and IPv6 support.
 
@@ -22,24 +22,33 @@ Supports IPv4 & IPv6, and works on Linux, macOS, and Windows.
 
 ---
 
-### ⚙️ Usage
-> On Linux/macOS, raw sockets require sudo.
-On Windows, run from an elevated terminal.
+## ⚙️ Usage
 
-##### CLI:
+### Commnad-Line Interface:
+#### Dependency
+- This tool depends on libpcap (on Linux/macOS) or Npcap SDK (on Windows) for capturing incoming TCP packets:
+	- On Linux:
+		```bash
+		sudo apt install libpcap libpcap-dev
+		```
+	- On macOS:
+		```bash
+		brew install libpcap
+		```
+	- On Windows: Download from here [Npcap SDK](https://npcap.com/#download).
 
-- **Build and run:**
+#### Build and run
+- **Download binary release:** Download the appropriate binary for your OS and architecture from the [releases](https://github.com/0ne-zero/traceroute/releases) page.
 
+- Build from source code:
 ```bash
 git clone https://github.com/0ne-zero/traceroute.git
 cd traceroute/cmd/
 go build -o gotraceroute ./gotraceroute.go
 sudo ./gotraceroute -h
 ```
-- **Download binary release:** Download the appropriate binary for your OS and architecture from the [releases](https://github.com/0ne-zero/traceroute/releases) page.
-> Note: On Linux and macOS, raw sockets require sudo.
-On Windows, run from an elevated terminal.
-
+> On Linux/macOS, raw sockets require sudo.
+> On Windows, run from an elevated terminal.
 
 
 
