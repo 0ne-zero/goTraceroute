@@ -11,6 +11,8 @@ import (
 // ErrMissingHost is returned when no host is provided as argument
 var ErrMissingHost = fmt.Errorf("host argument is required (e.g. traceroute [options] example.com)")
 
+const defaultMaxConsecutiveNoReplies = 20
+
 // CLIFlags holds parsed command-line flags and the host
 type CLIFlags struct {
 	DestPort                int
@@ -29,8 +31,8 @@ type CLIFlags struct {
 func ParseFlags() (*CLIFlags, error) {
 	var flags CLIFlags
 
-	flag.IntVar(&flags.FirstHop, "first-ttl", options.DefaultFirstHop, "Initial TTL to start probing from (default: 1)")
-	flag.IntVar(&flags.MaxHops, "max-ttl", options.DefaultMaxHops, "Maximum TTL (max hops) to probe (default: 30)")
+	flag.IntVar(&flags.FirstHop, "first-ttl", options.DefaultFirstHop, "Initial TTL to start probing from")
+	flag.IntVar(&flags.MaxHops, "max-ttl", options.DefaultMaxHops, "Maximum TTL (max hops) to probe")
 
 	flag.IntVar(&flags.DestPort, "dest-port", 0, "Destination port to probe")
 
@@ -41,7 +43,7 @@ func ParseFlags() (*CLIFlags, error) {
 
 	flag.StringVar(&flags.Protocol, "protocol", "udp", "Protocol to use: udp or tcp")
 
-	flag.IntVar(&flags.MaxConsecutiveNoReplies, "max-consecutive", 0, "Max consecutive probes without reply to stop early (0 disables)")
+	flag.IntVar(&flags.MaxConsecutiveNoReplies, "max-consecutive", defaultMaxConsecutiveNoReplies, "Max consecutive probes without reply to stop early (0 disables)")
 
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage: %s [options] host\n\nOptions:\n", os.Args[0])
@@ -66,9 +68,13 @@ func validate(flags *CLIFlags) error {
 
 	switch flags.Protocol {
 	case "udp":
-		flags.DestPort = options.DefaultUDPDestPort
+		if flags.DestPort == 0 {
+			flags.DestPort = options.DefaultUDPDestPort
+		}
 	case "tcp":
-		flags.DestPort = options.DefaultTCPDestPort
+		if flags.DestPort == 0 {
+			flags.DestPort = options.DefaultTCPDestPort
+		}
 	default:
 		return fmt.Errorf("invalid protocol: must be either \"udp\" or \"tcp\"")
 	}
