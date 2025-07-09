@@ -35,76 +35,82 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.24'
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
 
-    # Install dependencies for pcap (libpcap or Npcap)
-    - name: Install dependencies on Linux
-      if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get install -y libpcap-dev
+      # Install dependencies for pcap (libpcap or Npcap)
+      - name: Install dependencies on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libpcap-dev
 
-    - name: Install dependencies on macOS
-      if: runner.os == 'macOS'
-      run: brew install libpcap
+      - name: Install dependencies on macOS
+        if: runner.os == 'macOS'
+        run: brew install libpcap
 
-    - name: Install Npcap SDK on Windows
-      if: runner.os == 'Windows'
-      run: |
-        Invoke-WebRequest -Uri "https://nmap.org/npcap/dist/npcap-sdk-1.13.zip" -OutFile "npcap-sdk.zip"
-        Expand-Archive -Path "npcap-sdk.zip" -DestinationPath "npcap-sdk"
+      - name: Install Npcap SDK on Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://nmap.org/npcap/dist/npcap-sdk-1.13.zip" -OutFile "npcap-sdk.zip"
+          Expand-Archive -Path "npcap-sdk.zip" -DestinationPath "npcap-sdk"
 
-    - name: Extract tag
-      id: extract_tag
-      run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
+      - name: Extract tag
+        id: extract_tag
+        run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
 
-    - name: Build binary
-      env:
-        GOOS: ${{ matrix.goos }}
-        GOARCH: ${{ matrix.goarch }}
-        CGO_ENABLED: 1
-        # CGO flags only needed on Windows (Npcap)
-        CGO_CFLAGS: ${{ runner.os == 'Windows' && format('-I{0}\\npcap-sdk\\Include', github.workspace) || '' }}
-        CGO_LDFLAGS: ${{ runner.os == 'Windows' && format('-L{0}\\npcap-sdk\\Lib -lwpcap', github.workspace) || '' }}
-      run: |
-        mkdir -p dist
-        EXT=""
-        if [ "${GOOS}" = "windows" ]; then EXT=".exe"; fi
-        OUT="gotraceroute-${{ env.TAG_NAME }}-${GOOS}-${GOARCH}${EXT}"
-        go build -ldflags "-s -w" -o dist/$OUT ./cmd/gotraceroute.go
+      - name: Build binary
+        shell: bash
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 1
+          CGO_CFLAGS: ${{ runner.os == 'Windows' && format('-I{0}\\npcap-sdk\\Include', github.workspace) || '' }}
+          CGO_LDFLAGS: ${{ runner.os == 'Windows' && format('-L{0}\\npcap-sdk\\Lib -lwpcap', github.workspace) || '' }}
+        run: |
+          mkdir -p dist
+          EXT=""
+          if [ "${GOOS}" = "windows" ]; then EXT=".exe"; fi
+          OUT="gotraceroute-${{ env.TAG_NAME }}-${GOOS}-${GOARCH}${EXT}"
+          go build -ldflags "-s -w" -o dist/$OUT ./cmd/gotraceroute.go
 
-    - name: Generate checksum
-      run: |
-        cd dist
-        sha256sum * > checksums-${{ matrix.goos }}-${{ matrix.goarch }}.txt
+      - name: Generate checksum
+        shell: bash
+        run: |
+          cd dist
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum * > checksums-${{ matrix.goos }}-${{ matrix.goarch }}.txt
+          else
+            shasum -a 256 * > checksums-${{ matrix.goos }}-${{ matrix.goarch }}.txt
+          fi
 
-    - name: Upload artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: build-${{ matrix.goos }}-${{ matrix.goarch }}
-        path: dist/*
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/*
 
   release:
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - name: Download all artifacts
-      uses: actions/download-artifact@v4
-      with:
-        path: dist
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
 
-    - name: List downloaded files
-      run: ls -R dist
+      - name: List downloaded files
+        run: ls -R dist
 
-    - name: Create GitHub Release
-      uses: softprops/action-gh-release@v2
-      with:
-        tag_name: ${{ github.ref_name }}
-        name: Release ${{ github.ref_name }}
-        body: |
-          Prebuilt binaries and checksums for Linux, macOS, Windows.
-        files: dist/**/*
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            Prebuilt binaries and checksums for Linux, macOS, and Windows.
+          files: dist/**/*
