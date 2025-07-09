@@ -3,8 +3,9 @@ name: Build and Release
 on:
   push:
     tags:
-      - 'v*'  # Trigger only on version tags
+      - 'v*' # Trigger on version tags
 
+# This permission is required to create a release and upload assets.
 permissions:
   contents: write
 
@@ -41,9 +42,9 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: '1.22' # Using a slightly more common LTS version, adjust if you need 1.24 features
 
-      # Install dependencies for pcap (libpcap or Npcap)
+      # --- OS-SPECIFIC DEPENDENCIES ---
       - name: Install dependencies on Linux
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libpcap-dev
@@ -52,58 +53,88 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install libpcap
 
-      - name: Install Npcap SDK on Windows
+      - name: Download and extract Npcap SDK on Windows
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           Invoke-WebRequest -Uri "https://nmap.org/npcap/dist/npcap-sdk-1.13.zip" -OutFile "npcap-sdk.zip"
           Expand-Archive -Path "npcap-sdk.zip" -DestinationPath "npcap-sdk"
 
-      - name: Extract tag
+      - name: Extract tag name
         id: extract_tag
+        # This works on all shells (bash, sh, pwsh) provided by GitHub Actions runners
         run: echo "TAG_NAME=${GITHUB_REF##*/}" >> $GITHUB_ENV
 
-      - name: Build binary
-        shell: bash
+      # --- BUILD STEPS (FIXED) ---
+      # We use separate steps for Unix (Linux/macOS) and Windows to avoid shell syntax conflicts.
+
+      - name: Build binary (Unix)
+        if: runner.os != 'Windows'
         env:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
           CGO_ENABLED: 1
-          CGO_CFLAGS: ${{ runner.os == 'Windows' && format('-I{0}\\npcap-sdk\\Include', github.workspace) || '' }}
-          CGO_LDFLAGS: ${{ runner.os == 'Windows' && format('-L{0}\\npcap-sdk\\Lib -lwpcap', github.workspace) || '' }}
         run: |
           mkdir -p dist
-          EXT=""
-          if [ "${GOOS}" = "windows" ]; then EXT=".exe"; fi
-          OUT="gotraceroute-${{ env.TAG_NAME }}-${GOOS}-${GOARCH}${EXT}"
-          go build -ldflags "-s -w" -o dist/$OUT ./cmd/gotraceroute.go
+          OUT="gotraceroute-${TAG_NAME}-${GOOS}-${GOARCH}"
+          go build -ldflags="-s -w" -o "dist/$OUT" ./cmd/gotraceroute.go
 
-      - name: Generate checksum
-        shell: bash
+      - name: Build binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: 1
+          # Set absolute Windows SDK paths for CGO
+          CGO_CFLAGS: "-I${{ github.workspace }}\\npcap-sdk\\Include"
+          CGO_LDFLAGS: "-L${{ github.workspace }}\\npcap-sdk\\Lib\\${{ matrix.goarch }} -lwpcap"
+        run: |
+          New-Item -ItemType Directory -Path "dist" -Force
+          $out = "gotraceroute-${env:TAG_NAME}-${env:GOOS}-${env:GOARCH}.exe"
+          go build -ldflags="-s -w" -o "dist\$out" ./cmd/gotraceroute.go
+      
+      # --- CHECKSUM STEPS (IMPROVED) ---
+      # Using native tools for each OS is more reliable.
+
+      - name: Generate checksum (Unix)
+        if: runner.os != 'Windows'
         run: |
           cd dist
-          if command -v sha256sum >/dev/null 2>&1; then
-            sha256sum * > checksums-${{ matrix.goos }}-${{ matrix.goarch }}.txt
-          else
-            shasum -a 256 * > checksums-${{ matrix.goos }}-${{ matrix.goarch }}.txt
-          fi
+          # Use shasum which is common on macOS and often available on Linux
+          shasum -a 256 * > checksums.txt
+
+      - name: Generate checksum (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cd dist
+          Get-FileHash * -Algorithm SHA256 | Format-Table -HideTableHeaders | Out-File -FilePath checksums.txt
+          # The above command creates a file format like:
+          # HASH                                PATH
+          # 1234...  C:\actions-runner\_work\my-repo\my-repo\dist\gotraceroute-v1.0.0-windows-amd64.exe
+          # We can clean it up to just be "hash  filename" for consistency
+          (Get-Content checksums.txt) | ForEach-Object { $_.Trim() -replace '\s+', '  ' } | Set-Content checksums.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.goos }}-${{ matrix.goarch }}
+          # The path now includes the checksum file
           path: dist/*
 
   release:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Download all artifacts
+      - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
+          # This will download all artifacts into a directory named 'dist'
+          # with subdirectories for each artifact, e.g., dist/build-linux-amd64/
           path: dist
 
-      - name: List downloaded files
+      - name: List downloaded files (for debugging)
         run: ls -R dist
 
       - name: Create GitHub Release
@@ -113,4 +144,5 @@ jobs:
           name: Release ${{ github.ref_name }}
           body: |
             Prebuilt binaries and checksums for Linux, macOS, and Windows.
+          # The glob pattern correctly finds all files in all subdirectories
           files: dist/**/*
