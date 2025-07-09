@@ -10,16 +10,20 @@ Supports IPv4 & IPv6, and works on Linux, macOS, and Windows.
 ### ✏️ Features
 
 ✅ IPv4 and IPv6 support.
+
 ✅ Supports TCP and UDP protcols.
+
 ✅ Works transparently across Unix and Windows (using golang.org/x/sys + build tags).
+
 ✅ Early stopping after N consecutive silent hops to speed up scans when destination is unreachable.
+
 ✅ Context-aware API for use as a library or CLI.
 
 
 ---
 
 ### ⚙️ Usage
-- On Linux/macOS, raw sockets require sudo.
+> On Linux/macOS, raw sockets require sudo.
 On Windows, run from an elevated terminal.
 
 ##### CLI:
@@ -62,13 +66,13 @@ func main() {
 	opts := options.NewTracerouteOptions()
 
 	// Customize options as needed, (they've default value)
-    opts.SetProbeProtocol(options.PROTOCOL_TCP)    // Use TCP instead of default UDP
+    	opts.SetProbeProtocol(options.PROTOCOL_TCP)    // Use TCP instead of default UDP
 	opts.SetFirstHop(1)                            // Start from TTL=1
 	opts.SetMaxHops(30)                            // Limit max TTL to 30 hops
 	opts.SetTimeoutMs(5000)                        // 2 seconds timeout per probe
 	opts.SetDelayMs(100)                           // 100 ms delay between probes
 	opts.SetRetries(1)                             // Retry once if probe fails
-    opts.SetMaxConsecutiveNoReplies(5)             // Stop early if 5 consecutive TTL probes get no replies (no ICMP or TCP response)
+    	opts.SetMaxConsecutiveNoReplies(5)             // Stop early if 5 consecutive TTL probes get no replies (no ICMP or TCP response)
 
 
 	// --- Synchronous traceroute ---
