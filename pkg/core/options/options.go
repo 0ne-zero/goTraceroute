@@ -1,7 +1,7 @@
 package options
 
 import (
-	trace_socket "github.com/0ne-zero/traceroute/pkg/net/socket"
+	trace_socket "github.com/0ne-zero/goTraceroute/pkg/net/socket"
 )
 
 type Protocol int
@@ -12,7 +12,6 @@ const (
 )
 
 const (
-	DefaultUDPSrcPort              = 33777
 	DefaultUDPDestPort             = 33434
 	DefaultTCPDestPort             = 443
 	DefaultMaxHops                 = 64
@@ -27,7 +26,6 @@ const (
 
 // Options holds configuration for a traceroute operation
 type Options struct {
-	udpSrcPort              int
 	udpDestPort             int
 	tcpDestPort             int
 	maxHops                 int
@@ -43,7 +41,6 @@ type Options struct {
 // NewTracerouteOptions returns Options initialized with default values
 func NewTracerouteOptions() *Options {
 	return &Options{
-		udpSrcPort:              DefaultUDPSrcPort,
 		udpDestPort:             DefaultUDPDestPort,
 		tcpDestPort:             DefaultTCPDestPort,
 		maxHops:                 DefaultMaxHops,
@@ -58,9 +55,6 @@ func NewTracerouteOptions() *Options {
 }
 
 // Getters
-
-// UDPSrcPort returns the UDP source port for probes
-func (o *Options) UDPSrcPort() int { return o.udpSrcPort }
 
 // UDPDestPort returns the UDP destination port for probes
 func (o *Options) UDPDestPort() int { return o.udpDestPort }
@@ -96,9 +90,6 @@ func (o *Options) MaxConsecutiveNoReplies() int {
 }
 
 // Setters
-
-// SetUDPSrcPort sets the UDP source port for probes
-func (o *Options) SetUDPSrcPort(port int) { o.udpSrcPort = port }
 
 // SetUDPDestPort sets the UDP destination port for probes
 func (o *Options) SetUDPDestPort(port int) { o.udpDestPort = port }
