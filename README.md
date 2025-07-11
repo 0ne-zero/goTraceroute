@@ -19,6 +19,8 @@ It supports IPv4/IPv6 and TCP/UDP, and works on Linux, macOS, and Windows.
 
 ✅ Context-aware API for use as a library or CLI.
 
+✅ Accurate results based on matching each response to sent probe request.
+
 
 ---
 
