@@ -13,7 +13,7 @@ const (
 
 const (
 	DefaultUDPDestPort             = 33434
-	DefaultTCPDestPort             = 443
+	DefaultTCPDestPort             = 80
 	DefaultMaxHops                 = 64
 	DefaultFirstHop                = 1
 	DefaultTimeoutMs               = 3000
