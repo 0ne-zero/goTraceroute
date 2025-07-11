@@ -34,7 +34,7 @@ func ParseFlags() (*CLIFlags, error) {
 	flag.IntVar(&flags.FirstHop, "first-ttl", options.DefaultFirstHop, "Initial TTL to start probing from")
 	flag.IntVar(&flags.MaxHops, "max-ttl", options.DefaultMaxHops, "Maximum TTL (max hops) to probe")
 
-	flag.IntVar(&flags.DestPort, "dest-port", 0, "Destination port to probe")
+	flag.IntVar(&flags.DestPort, "dest-port", 0, "Destination port (default: UDP 33434 / TCP 80)")
 
 	flag.IntVar(&flags.TimeoutMs, "timeout", options.DefaultTimeoutMs, "Timeout per probe in milliseconds")
 	flag.IntVar(&flags.DelayMs, "delay", options.DefaultDelayMs, "Delay between sending probes in milliseconds")
