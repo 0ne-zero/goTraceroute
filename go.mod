@@ -1,4 +1,4 @@
-module github.com/0ne-zero/traceroute
+module github.com/0ne-zero/goTraceroute
 
 go 1.24
 

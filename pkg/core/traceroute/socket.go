@@ -3,12 +3,12 @@ package traceroute
 import (
 	"errors"
 
-	"github.com/0ne-zero/traceroute/pkg/core/options"
-	"github.com/0ne-zero/traceroute/pkg/core/probe"
-	"github.com/0ne-zero/traceroute/pkg/net/icmp"
-	trace_socket "github.com/0ne-zero/traceroute/pkg/net/socket"
-	trace_net_tcp "github.com/0ne-zero/traceroute/pkg/net/tcp"
-	trace_net_udp "github.com/0ne-zero/traceroute/pkg/net/udp"
+	"github.com/0ne-zero/goTraceroute/pkg/core/options"
+	"github.com/0ne-zero/goTraceroute/pkg/core/probe"
+	"github.com/0ne-zero/goTraceroute/pkg/net/icmp"
+	trace_socket "github.com/0ne-zero/goTraceroute/pkg/net/socket"
+	trace_net_tcp "github.com/0ne-zero/goTraceroute/pkg/net/tcp"
+	trace_net_udp "github.com/0ne-zero/goTraceroute/pkg/net/udp"
 )
 
 // setTTL sets the TTL/hop limit on the UDP socket for IPv4 or IPv6.

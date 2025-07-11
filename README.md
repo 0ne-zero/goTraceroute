@@ -48,11 +48,11 @@ It supports IPv4/IPv6 and TCP/UDP, and works on Linux, macOS, and Windows.
 #### Build and run
 - Install it with `go install`:
 ```bash
-go install github.com/0ne-zero/traceroute/cmd/gotraceroute@latest
+go install github.com/0ne-zero/goTraceroute/cmd/gotraceroute@latest
 ```
 - Build from source code:
 ```bash
-git clone https://github.com/0ne-zero/traceroute.git
+git clone https://github.com/0ne-zero/goTraceroute.git
 cd traceroute/cmd/
 go build -o gotraceroute ./gotraceroute.go
 sudo ./gotraceroute -h
@@ -60,12 +60,12 @@ sudo ./gotraceroute -h
 > On Linux/macOS, raw sockets require sudo.
 > On Windows, run from an elevated terminal.
 
-- Download binary release: Download the appropriate binary for your OS and architecture from the [releases](https://github.com/0ne-zero/traceroute/releases) page.
+- Download binary release: Download the appropriate binary for your OS and architecture from the [releases](https://github.com/0ne-zero/goTraceroute/releases) page.
 
 ### As a library (module):
 - Get the module:
 ```bash
-go get github.com/0ne-zero/traceroute
+go get github.com/0ne-zero/goTraceroute
 ```
 
 - Code example:
@@ -76,9 +76,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/0ne-zero/traceroute"
-	"github.com/0ne-zero/traceroute/pkg/core/options"
-	"github.com/0ne-zero/traceroute/pkg/core/hop"
+	"github.com/0ne-zero/goTraceroute/pkg/core/hop"
+	"github.com/0ne-zero/goTraceroute/pkg/core/options"
+	"github.com/0ne-zero/goTraceroute/pkg/core/traceroute"
 )
 
 func main() {
@@ -86,14 +86,13 @@ func main() {
 	opts := options.NewTracerouteOptions()
 
 	// Customize options as needed, (they've default value)
-    	opts.SetProbeProtocol(options.PROTOCOL_TCP)    // Use TCP instead of default UDP
-	opts.SetFirstHop(1)                            // Start from TTL=1
-	opts.SetMaxHops(30)                            // Limit max TTL to 30 hops
-	opts.SetTimeoutMs(5000)                        // 2 seconds timeout per probe
-	opts.SetDelayMs(100)                           // 100 ms delay between probes
-	opts.SetRetries(1)                             // Retry once if probe fails
-    	opts.SetMaxConsecutiveNoReplies(5)             // Stop early if 5 consecutive TTL probes get no replies (no ICMP or TCP response)
-
+	opts.SetProbeProtocol(options.PROTOCOL_TCP) // Use TCP instead of default UDP
+	opts.SetFirstHop(1)                         // Start from TTL=1
+	opts.SetMaxHops(30)                         // Limit max TTL to 30 hops
+	opts.SetTimeoutMs(5000)                     // 2 seconds timeout per probe
+	opts.SetDelayMs(100)                        // 100 ms delay between probes
+	opts.SetRetries(1)                          // Retry once if probe fails
+	opts.SetMaxConsecutiveNoReplies(5)          // Stop early if 5 consecutive TTL probes get no replies (no ICMP or TCP response)
 
 	// --- Synchronous traceroute ---
 
@@ -109,7 +108,6 @@ func main() {
 	for h := range resChan {
 		fmt.Printf("TTL %d\t%s\t%v\n", h.TTL, h.Address, h.ElapsedTime)
 	}
-
 
 	// --- Asynchronous traceroute ---
 
@@ -138,7 +136,6 @@ func main() {
 		}
 	}
 }
-
 ```
 
 ---

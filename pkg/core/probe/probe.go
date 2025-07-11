@@ -4,8 +4,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/0ne-zero/traceroute/pkg/core/hop"
-	"github.com/0ne-zero/traceroute/pkg/core/options"
+	"github.com/0ne-zero/goTraceroute/pkg/core/hop"
+	"github.com/0ne-zero/goTraceroute/pkg/core/options"
 )
 
 // ProbeRequest holds parameters for sending a probe packet

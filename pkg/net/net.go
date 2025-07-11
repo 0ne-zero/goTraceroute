@@ -9,7 +9,7 @@ import (
 	"net"
 	"time"
 
-	trace_socket "github.com/0ne-zero/traceroute/pkg/net/socket"
+	trace_socket "github.com/0ne-zero/goTraceroute/pkg/net/socket"
 )
 
 // ResolveHostnameToIP resolves hostname to preferred IP family (IPv4 or IPv6)

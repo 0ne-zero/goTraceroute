@@ -6,11 +6,11 @@ import (
 	"errors"
 	"time"
 
-	"github.com/0ne-zero/traceroute/pkg/core/hop"
-	"github.com/0ne-zero/traceroute/pkg/core/options"
-	"github.com/0ne-zero/traceroute/pkg/core/probe"
-	trace_net "github.com/0ne-zero/traceroute/pkg/net"
-	trace_socket "github.com/0ne-zero/traceroute/pkg/net/socket"
+	"github.com/0ne-zero/goTraceroute/pkg/core/hop"
+	"github.com/0ne-zero/goTraceroute/pkg/core/options"
+	"github.com/0ne-zero/goTraceroute/pkg/core/probe"
+	trace_net "github.com/0ne-zero/goTraceroute/pkg/net"
+	trace_socket "github.com/0ne-zero/goTraceroute/pkg/net/socket"
 )
 
 const (

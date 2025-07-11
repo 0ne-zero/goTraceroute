@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/0ne-zero/traceroute/pkg/core/options"
+	"github.com/0ne-zero/goTraceroute/pkg/core/options"
 )
 
 // ErrMissingHost is returned when no host is provided as argument

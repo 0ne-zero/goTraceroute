@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/0ne-zero/traceroute/pkg/core/hop"
-	"github.com/0ne-zero/traceroute/pkg/core/options"
-	"github.com/0ne-zero/traceroute/pkg/core/traceroute"
+	"github.com/0ne-zero/goTraceroute/pkg/core/hop"
+	"github.com/0ne-zero/goTraceroute/pkg/core/options"
+	"github.com/0ne-zero/goTraceroute/pkg/core/traceroute"
 )
 
 func printHop(hop hop.TracerouteHop) {

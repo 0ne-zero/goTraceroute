@@ -4,8 +4,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/0ne-zero/traceroute/pkg/core/options"
-	trace_net "github.com/0ne-zero/traceroute/pkg/net"
+	"github.com/0ne-zero/goTraceroute/pkg/core/options"
+	trace_net "github.com/0ne-zero/goTraceroute/pkg/net"
 )
 
 // TracerouteHop represents a single hop in a traceroute operation.

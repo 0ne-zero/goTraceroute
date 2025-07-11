@@ -7,11 +7,11 @@ import (
 	"net"
 	"time"
 
-	"github.com/0ne-zero/traceroute/pkg/core/hop"
-	"github.com/0ne-zero/traceroute/pkg/core/probe"
-	trace_net "github.com/0ne-zero/traceroute/pkg/net"
-	trace_socket "github.com/0ne-zero/traceroute/pkg/net/socket"
-	tcp_capture "github.com/0ne-zero/traceroute/pkg/net/tcp/capture"
+	"github.com/0ne-zero/goTraceroute/pkg/core/hop"
+	"github.com/0ne-zero/goTraceroute/pkg/core/probe"
+	trace_net "github.com/0ne-zero/goTraceroute/pkg/net"
+	trace_socket "github.com/0ne-zero/goTraceroute/pkg/net/socket"
+	tcp_capture "github.com/0ne-zero/goTraceroute/pkg/net/tcp/capture"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"

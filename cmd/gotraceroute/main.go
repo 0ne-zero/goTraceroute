@@ -9,11 +9,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/0ne-zero/traceroute/cmd/gotraceroute/flag"
-	"github.com/0ne-zero/traceroute/pkg/core/hop"
-	"github.com/0ne-zero/traceroute/pkg/core/options"
-	"github.com/0ne-zero/traceroute/pkg/core/traceroute"
-	trace_socket "github.com/0ne-zero/traceroute/pkg/net/socket"
+	"github.com/0ne-zero/goTraceroute/cmd/gotraceroute/flag"
+	"github.com/0ne-zero/goTraceroute/pkg/core/hop"
+	"github.com/0ne-zero/goTraceroute/pkg/core/options"
+	"github.com/0ne-zero/goTraceroute/pkg/core/traceroute"
+	trace_socket "github.com/0ne-zero/goTraceroute/pkg/net/socket"
 )
 
 func main() {

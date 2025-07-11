@@ -6,14 +6,14 @@ import (
 	"net"
 	"time"
 
-	"github.com/0ne-zero/traceroute/pkg/core/hop"
-	"github.com/0ne-zero/traceroute/pkg/core/options"
-	"github.com/0ne-zero/traceroute/pkg/core/probe"
-	trace_net "github.com/0ne-zero/traceroute/pkg/net"
-	"github.com/0ne-zero/traceroute/pkg/net/icmp"
-	trace_socket "github.com/0ne-zero/traceroute/pkg/net/socket"
-	"github.com/0ne-zero/traceroute/pkg/net/tcp"
-	tcp_capture "github.com/0ne-zero/traceroute/pkg/net/tcp/capture"
+	"github.com/0ne-zero/goTraceroute/pkg/core/hop"
+	"github.com/0ne-zero/goTraceroute/pkg/core/options"
+	"github.com/0ne-zero/goTraceroute/pkg/core/probe"
+	trace_net "github.com/0ne-zero/goTraceroute/pkg/net"
+	"github.com/0ne-zero/goTraceroute/pkg/net/icmp"
+	trace_socket "github.com/0ne-zero/goTraceroute/pkg/net/socket"
+	"github.com/0ne-zero/goTraceroute/pkg/net/tcp"
+	tcp_capture "github.com/0ne-zero/goTraceroute/pkg/net/tcp/capture"
 	"github.com/google/gopacket/pcap"
 )
 

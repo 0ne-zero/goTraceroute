@@ -1,7 +1,7 @@
 package udp
 
 import (
-	"github.com/0ne-zero/traceroute/pkg/core/probe"
+	"github.com/0ne-zero/goTraceroute/pkg/core/probe"
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
 )
