@@ -69,7 +69,7 @@ jobs:
         run: |
           mkdir -p dist
           OUT="gotraceroute-${GOOS}-${GOARCH}"
-          go build -ldflags="-s -w" -o "dist/$OUT" ./cmd/gotraceroute.go
+          go build -ldflags="-s -w" -o "dist/$OUT" ./cmd/gotraceroute/
           
       # Build for Windows
       - name: Build binary (Windows)
@@ -84,7 +84,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Path "dist" -Force
           $out = "gotraceroute-${env:GOOS}-${env:GOARCH}.exe"
-          go build -ldflags="-s -w" -o "dist\$out" ./cmd/gotraceroute.go
+          go build -ldflags="-s -w" -o "dist\$out" ./cmd/gotraceroute/
           
       - name: Generate checksums (Unix)
         if: matrix.goos != 'windows'
