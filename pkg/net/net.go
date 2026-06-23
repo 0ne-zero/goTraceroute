@@ -117,7 +117,7 @@ func GetOutboundAddr(destIP net.IP) (net.IP, error) {
 		return nil, fmt.Errorf("invalid destination IP: %v", destIP)
 	}
 
-	conn, err := net.Dial(network, net.JoinHostPort(destIP.String(), "0"))
+	conn, err := net.Dial(network, net.JoinHostPort(destIP.String(), "80"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial: %w", err)
 	}
