@@ -75,6 +75,9 @@ func HandleProbeTCPResponse(ctx context.Context, captureHandle *pcap.Handle, pro
 
 			// Parse the incoming TCP packet
 			parsedPacket, err := parseTCPPacket(packetData, probeReq)
+			if err != nil {
+				continue
+			}
 			fmt.Printf("Got packet src=%v srcPort=%v dstPort=%v flags=%+v\n",
 				parsedPacket.srcIP, parsedPacket.srcPort, parsedPacket.destPort, parsedPacket.flags)
 
